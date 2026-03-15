@@ -44,7 +44,7 @@ export default function Terminal() {
     <PageContainer>
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
         <div>
-          <h1 className="text-xl font-bold">Funding Rate Terminal</h1>
+          <h1 className="font-display text-xl font-bold">Funding Rate Terminal</h1>
           <p className="text-sm text-muted-foreground">Live rates, charts & order book depth</p>
         </div>
         {!marketsLoading && markets && (
@@ -67,13 +67,13 @@ export default function Terminal() {
       <div className="grid grid-cols-3 md:grid-cols-6 gap-3 mb-6" data-testid="terminal-kpis">
         {marketsLoading
           ? [...Array(6)].map((_, i) => (
-              <div key={i} className="bg-card border border-card-border rounded-lg p-3">
+              <div key={i} className="glass-card p-3">
                 <Skeleton className="h-3 w-16 mb-2" />
                 <Skeleton className="h-5 w-12" />
               </div>
             ))
           : kpis.map((kpi) => (
-              <div key={kpi.label} className="bg-card border border-card-border rounded-lg p-3">
+              <div key={kpi.label} className="glass-card p-3">
                 <p className="text-[11px] text-muted-foreground mb-1">{kpi.label}</p>
                 <p className={`text-base font-bold tabular-nums ${kpi.color}`}>{kpi.value}</p>
               </div>
@@ -83,7 +83,7 @@ export default function Terminal() {
       {/* Chart + Order Book */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
         {/* Chart */}
-        <div className="lg:col-span-2 bg-card border border-card-border rounded-lg p-4">
+        <div className="lg:col-span-2 bg-card border border-card-border rounded-xl p-4">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-semibold">Rate Chart</h3>
             <div className="flex gap-1">
@@ -136,7 +136,7 @@ export default function Terminal() {
         </div>
 
         {/* Order Book */}
-        <div className="bg-card border border-card-border rounded-lg p-4">
+        <div className="bg-card border border-card-border rounded-xl p-4">
           <h3 className="text-sm font-semibold mb-3">Order Book</h3>
           <div className="space-y-0.5 text-xs font-mono">
             {/* Asks (reversed - highest at top) */}
@@ -170,7 +170,7 @@ export default function Terminal() {
       </div>
 
       {/* Recent Trades */}
-      <div className="bg-card border border-card-border rounded-lg p-4 mb-16">
+      <div className="bg-card border border-card-border rounded-xl p-4 mb-16">
         <h3 className="text-sm font-semibold mb-3">Recent Trades</h3>
         <div className="overflow-x-auto">
           <table className="w-full text-xs">

@@ -69,14 +69,14 @@ export default function Simulator() {
   return (
     <PageContainer>
       <div className="mb-6">
-        <h1 className="text-xl font-bold">P&L Simulator</h1>
+        <h1 className="font-display text-xl font-bold">P&L Simulator</h1>
         <p className="text-sm text-muted-foreground">Model positions before you trade</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 mb-16">
         {/* Left: inputs */}
         <div className="lg:col-span-2 space-y-5" data-testid="simulator-inputs">
-          <div className="bg-card border border-card-border rounded-lg p-4 space-y-4">
+          <div className="bg-card border border-card-border rounded-xl p-4 space-y-4">
             {/* Market */}
             <div>
               <label className="text-xs text-muted-foreground block mb-1.5">Market</label>
@@ -213,7 +213,7 @@ export default function Simulator() {
               { label: "Liquidation Rate", value: liqRate > 0 ? `${liqRate.toFixed(2)}%` : "N/A", color: "text-destructive" },
               { label: "Notional", value: formatUSD(notional), color: "text-muted-foreground" },
             ].map((kpi) => (
-              <div key={kpi.label} className="bg-card border border-card-border rounded-lg p-3">
+              <div key={kpi.label} className="glass-card p-3">
                 <p className="text-[11px] text-muted-foreground mb-1">{kpi.label}</p>
                 <p className={`text-base font-bold tabular-nums ${kpi.color}`}>{kpi.value}</p>
               </div>
@@ -221,7 +221,7 @@ export default function Simulator() {
           </div>
 
           {/* P&L Chart */}
-          <div className="bg-card border border-card-border rounded-lg p-4">
+          <div className="bg-card border border-card-border rounded-xl p-4">
             <h3 className="text-sm font-semibold mb-3">P&L Across Funding Rates</h3>
             <div className="h-[280px]">
               <ResponsiveContainer width="100%" height="100%">
@@ -250,7 +250,7 @@ export default function Simulator() {
           </div>
 
           {/* Comparison card */}
-          <div className="bg-card border border-card-border rounded-lg p-4">
+          <div className="bg-card border border-card-border rounded-xl p-4">
             <h3 className="text-sm font-semibold mb-2">vs. Just Holding (No Hedge)</h3>
             <p className="text-xs text-muted-foreground mb-3">
               Without locking your rate on Boros, your P&L depends entirely on volatile funding rates.

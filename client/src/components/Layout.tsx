@@ -6,26 +6,13 @@ import { NAV_LINKS, BOROS_REFERRAL_URL, EXTERNAL_LINKS } from "@/lib/constants";
 function BorosLogo() {
   return (
     <Link href="/" data-testid="link-home">
-      <div className="flex items-center gap-1.5 cursor-pointer">
-        <svg width="28" height="28" viewBox="0 0 32 32" fill="none" aria-label="Boros Tools logo">
-          <rect x="2" y="2" width="28" height="28" rx="8" stroke="url(#logo-grad)" strokeWidth="2.5" fill="none" />
-          <path d="M10 11h6a4 4 0 010 8h-6" stroke="#1BE3C2" strokeWidth="2" strokeLinecap="round" fill="none" />
-          <path d="M10 11v10" stroke="#6079FF" strokeWidth="2" strokeLinecap="round" />
-          <circle cx="22" cy="16" r="2.5" fill="url(#logo-grad)" />
-          <defs>
-            <linearGradient id="logo-grad" x1="0" y1="0" x2="32" y2="32">
-              <stop stopColor="#1BE3C2" />
-              <stop offset="1" stopColor="#6079FF" />
-            </linearGradient>
-          </defs>
-        </svg>
-        <div className="flex flex-col leading-none">
-          <span className="text-sm font-bold tracking-tight">
-            <span className="gradient-text">Boros</span>{" "}
-            <span className="text-white">Tools</span>
-          </span>
-          <span className="text-[10px] text-muted-foreground">by Pendle</span>
-        </div>
+      <div className="flex items-center gap-2 cursor-pointer">
+        <img
+          src="./brand/boros-by-pendle-logo.svg"
+          alt="Boros by Pendle"
+          className="h-7 w-auto"
+          style={{ minWidth: "120px" }}
+        />
       </div>
     </Link>
   );
@@ -38,7 +25,7 @@ export function Navbar() {
   return (
     <nav
       className="sticky top-0 z-50 border-b border-border/50 backdrop-blur-xl"
-      style={{ backgroundColor: "rgba(9, 13, 24, 0.85)" }}
+      style={{ backgroundColor: "rgba(13, 20, 32, 0.85)" }}
       data-testid="navbar"
     >
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -52,14 +39,17 @@ export function Navbar() {
               return (
                 <Link key={link.href} href={link.href}>
                   <span
-                    className={`px-3 py-1.5 text-[13px] font-medium rounded-md transition-colors cursor-pointer ${
+                    className={`px-3 py-1.5 text-[13px] font-medium transition-colors cursor-pointer relative ${
                       isActive
-                        ? "text-primary bg-primary/10"
-                        : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+                        ? "text-primary"
+                        : "text-muted-foreground hover:text-foreground"
                     }`}
                     data-testid={`nav-${link.label.toLowerCase()}`}
                   >
                     {link.label}
+                    {isActive && (
+                      <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4/5 h-[2px] bg-primary rounded-full" />
+                    )}
                   </span>
                 </Link>
               );
@@ -71,7 +61,7 @@ export function Navbar() {
               href={BOROS_REFERRAL_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="hidden sm:inline-flex items-center gap-1.5 gradient-bg text-background text-xs font-semibold px-4 py-2 rounded-lg hover:opacity-90 transition-opacity"
+              className="hidden sm:inline-flex items-center gap-1.5 teal-cta text-xs px-4 py-2 rounded-lg"
               data-testid="cta-trade"
             >
               Trade on Boros
@@ -100,9 +90,9 @@ export function Navbar() {
                 <Link key={link.href} href={link.href}>
                   <span
                     onClick={() => setMobileOpen(false)}
-                    className={`block px-3 py-2 text-sm rounded-md cursor-pointer ${
+                    className={`block px-3 py-2 text-sm cursor-pointer ${
                       isActive
-                        ? "text-primary bg-primary/10"
+                        ? "text-primary border-l-2 border-primary pl-2.5"
                         : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
@@ -115,7 +105,7 @@ export function Navbar() {
               href={BOROS_REFERRAL_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="block mt-2 text-center gradient-bg text-background text-sm font-semibold px-4 py-2.5 rounded-lg"
+              className="block mt-2 text-center teal-cta text-sm px-4 py-2.5 rounded-lg"
             >
               Trade on Boros
             </a>
@@ -131,6 +121,16 @@ export function Footer() {
     <footer className="border-t border-border/50 mt-auto" data-testid="footer">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
+          <div>
+            <img
+              src="./brand/boros-by-pendle-logo.svg"
+              alt="Boros by Pendle"
+              className="h-5 w-auto mb-4 opacity-70"
+            />
+            <p className="text-xs text-muted-foreground/60 leading-relaxed">
+              Analytics & tools for<br />Pendle Boros trading
+            </p>
+          </div>
           <div>
             <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Tools</h4>
             <div className="space-y-2">
@@ -189,7 +189,7 @@ export function PageContainer({ children }: { children: React.ReactNode }) {
 // Sticky CTA bar for tool pages
 export function StickyCTA({ text }: { text?: string }) {
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border/50 backdrop-blur-xl" style={{ backgroundColor: "rgba(9, 13, 24, 0.9)" }}>
+    <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border/50 backdrop-blur-xl" style={{ backgroundColor: "rgba(13, 20, 32, 0.9)" }}>
       <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between">
         <p className="text-sm text-muted-foreground hidden sm:block">
           {text || "Ready to trade? Lock in rates on Boros"}
@@ -198,7 +198,7 @@ export function StickyCTA({ text }: { text?: string }) {
           href={BOROS_REFERRAL_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 gradient-bg text-background text-sm font-semibold px-5 py-2 rounded-lg hover:opacity-90 transition-opacity ml-auto"
+          className="inline-flex items-center gap-1.5 teal-cta text-sm px-5 py-2 rounded-lg ml-auto"
           data-testid="cta-sticky"
         >
           Trade on Boros →

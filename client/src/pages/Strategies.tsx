@@ -107,7 +107,7 @@ function StrategyCard({ strategy }: { strategy: Strategy }) {
   const ethMarket = markets?.find((m) => m.underlying === "ETH");
 
   return (
-    <div className="bg-card border border-card-border rounded-lg overflow-hidden" data-testid={`strategy-${strategy.id}`}>
+    <div className="bg-card border border-card-border rounded-xl overflow-hidden pendle-glow" data-testid={`strategy-${strategy.id}`}>
       {/* Header */}
       <div
         className="p-5 cursor-pointer hover:bg-white/[0.02] transition-colors"
@@ -138,7 +138,7 @@ function StrategyCard({ strategy }: { strategy: Strategy }) {
               {strategy.steps.map((step, i) => (
                 <div key={i} className="flex-1 flex items-start gap-2">
                   <div className="flex flex-col items-center">
-                    <div className="flex items-center justify-center w-7 h-7 rounded-full gradient-bg text-background text-xs font-bold flex-shrink-0">
+                    <div className="flex items-center justify-center w-7 h-7 rounded-full teal-cta text-xs font-bold flex-shrink-0">
                       {i + 1}
                     </div>
                     {i < strategy.steps.length - 1 && (
@@ -189,7 +189,7 @@ function StrategyCard({ strategy }: { strategy: Strategy }) {
             href={BOROS_REFERRAL_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 gradient-bg text-background text-sm font-semibold px-5 py-2.5 rounded-lg hover:opacity-90 transition-opacity"
+            className="inline-flex items-center gap-1.5 teal-cta text-sm px-5 py-2.5 rounded-lg"
             data-testid={`cta-${strategy.id}`}
           >
             Try this strategy on Boros
@@ -205,7 +205,7 @@ export default function Strategies() {
   return (
     <PageContainer>
       <div className="mb-6">
-        <h1 className="text-xl font-bold">Strategy Hub</h1>
+        <h1 className="font-display text-xl font-bold">Strategy Hub</h1>
         <p className="text-sm text-muted-foreground">Interactive guides for every Boros funding rate strategy</p>
       </div>
 

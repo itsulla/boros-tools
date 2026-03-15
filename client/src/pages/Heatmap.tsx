@@ -82,7 +82,7 @@ export default function Heatmap() {
     <PageContainer>
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
         <div>
-          <h1 className="text-xl font-bold">Funding Rate Heatmap</h1>
+          <h1 className="font-display text-xl font-bold">Funding Rate Heatmap</h1>
           <p className="text-sm text-muted-foreground">Visual overview across exchanges & assets</p>
         </div>
         <div className="flex gap-1 bg-card border border-card-border rounded-lg p-1">
@@ -109,7 +109,7 @@ export default function Heatmap() {
       </div>
 
       {/* Heatmap Grid */}
-      <div className="bg-card border border-card-border rounded-lg overflow-hidden mb-6">
+      <div className="bg-card border border-card-border rounded-xl overflow-hidden mb-6">
         {isLoading ? (
           <div className="p-6 space-y-3">
             {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
@@ -164,7 +164,7 @@ export default function Heatmap() {
       {/* Insight Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-16">
         {insights.highestSpread && (
-          <div className="bg-card border border-card-border rounded-lg p-4">
+          <div className="bg-card border border-card-border rounded-xl p-4">
             <p className="text-xs text-muted-foreground mb-1">Highest Cross-Exchange Spread</p>
             <p className="text-lg font-bold">
               <span className="text-primary">{insights.highestSpread.asset}</span>
@@ -175,7 +175,7 @@ export default function Heatmap() {
           </div>
         )}
         {insights.borosOpp && (
-          <div className="bg-card border border-card-border rounded-lg p-4">
+          <div className="bg-card border border-card-border rounded-xl p-4">
             <p className="text-xs text-muted-foreground mb-1">Boros Opportunity</p>
             <p className="text-lg font-bold">
               <span className="text-secondary">{insights.borosOpp.asset}</span>

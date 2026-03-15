@@ -58,7 +58,7 @@ export default function Yields() {
   return (
     <PageContainer>
       <div className="mb-6">
-        <h1 className="text-xl font-bold">Yield Comparison</h1>
+        <h1 className="font-display text-xl font-bold">Yield Comparison</h1>
         <p className="text-sm text-muted-foreground">Compare Boros vs DeFi vs CeFi yields</p>
       </div>
 
@@ -81,7 +81,7 @@ export default function Yields() {
       </div>
 
       {/* Bar chart */}
-      <div className="bg-card border border-card-border rounded-lg p-4 mb-6">
+      <div className="bg-card border border-card-border rounded-xl p-4 mb-6">
         <h3 className="text-sm font-semibold mb-3">Yield Comparison</h3>
         <div className="h-[260px]">
           {chartData.length > 0 ? (
@@ -141,7 +141,7 @@ export default function Yields() {
       </div>
 
       {/* Table */}
-      <div className="bg-card border border-card-border rounded-lg overflow-hidden mb-6">
+      <div className="bg-card border border-card-border rounded-xl overflow-hidden mb-6">
         {isLoading ? (
           <div className="p-4 space-y-3">
             {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
@@ -211,7 +211,7 @@ export default function Yields() {
               href={BOROS_REFERRAL_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 gradient-bg text-background text-xs font-semibold px-4 py-2 rounded-lg hover:opacity-90 transition-opacity whitespace-nowrap"
+              className="inline-flex items-center gap-1.5 teal-cta text-xs px-4 py-2 rounded-lg whitespace-nowrap"
             >
               Trade on Boros
               <ExternalLink className="w-3 h-3" />
