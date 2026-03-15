@@ -1,0 +1,44 @@
+import { Switch, Route, Router } from "wouter";
+import { useHashLocation } from "wouter/use-hash-location";
+import { queryClient } from "./lib/queryClient";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { Toaster } from "@/components/ui/toaster";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import NotFound from "@/pages/not-found";
+import Home from "@/pages/Home";
+import Terminal from "@/pages/Terminal";
+import Arbitrage from "@/pages/Arbitrage";
+import Simulator from "@/pages/Simulator";
+import Heatmap from "@/pages/Heatmap";
+import Yields from "@/pages/Yields";
+import Strategies from "@/pages/Strategies";
+
+function AppRouter() {
+  return (
+    <Switch>
+      <Route path="/" component={Home} />
+      <Route path="/terminal" component={Terminal} />
+      <Route path="/arbitrage" component={Arbitrage} />
+      <Route path="/simulator" component={Simulator} />
+      <Route path="/heatmap" component={Heatmap} />
+      <Route path="/yields" component={Yields} />
+      <Route path="/strategies" component={Strategies} />
+      <Route component={NotFound} />
+    </Switch>
+  );
+}
+
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Router hook={useHashLocation}>
+          <AppRouter />
+        </Router>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+}
+
+export default App;
