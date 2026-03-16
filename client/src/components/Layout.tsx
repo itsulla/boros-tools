@@ -10,8 +10,8 @@ function BorosLogo() {
         <img
           src="./brand/boros-by-pendle-logo.svg"
           alt="Boros by Pendle"
-          className="h-7 w-auto"
-          style={{ minWidth: "120px" }}
+          className="h-9 sm:h-10 w-auto"
+          style={{ minWidth: "150px" }}
         />
       </div>
     </Link>
@@ -125,7 +125,7 @@ export function Footer() {
             <img
               src="./brand/boros-by-pendle-logo.svg"
               alt="Boros by Pendle"
-              className="h-5 w-auto mb-4 opacity-70"
+              className="h-7 w-auto mb-4 opacity-70"
             />
             <p className="text-xs text-muted-foreground/60 leading-relaxed">
               Analytics & tools for<br />Pendle Boros trading
@@ -174,14 +174,29 @@ export function Footer() {
 
 export function PageContainer({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex flex-col min-h-screen">
-      <Navbar />
-      <main className="flex-1">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
-          {children}
-        </div>
-      </main>
-      <Footer />
+    <div className="flex flex-col min-h-screen relative">
+      {/* Full-page Boros poster background */}
+      <div
+        className="fixed inset-0 z-0"
+        style={{
+          backgroundImage: "url('./brand/boros-poster-universe.png')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+          backgroundAttachment: "fixed",
+        }}
+      />
+      {/* Dark overlay so content remains readable */}
+      <div className="fixed inset-0 z-0 bg-background/80" />
+      <div className="relative z-10 flex flex-col min-h-screen">
+        <Navbar />
+        <main className="flex-1">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
+            {children}
+          </div>
+        </main>
+        <Footer />
+      </div>
     </div>
   );
 }

@@ -55,7 +55,7 @@ export default function Home() {
         <div
           className="absolute inset-0 z-0"
           style={{
-            backgroundImage: "url('./brand/background-3-pendle.png')",
+            backgroundImage: "url('./brand/boros-poster-galaxy.png')",
             backgroundSize: "cover",
             backgroundPosition: "center",
             backgroundRepeat: "no-repeat",
@@ -76,7 +76,7 @@ export default function Home() {
               <img
                 src="./brand/boros-by-pendle-logo.svg"
                 alt="Boros by Pendle"
-                className="h-10 md:h-12 w-auto mb-5 mx-auto lg:mx-0"
+                className="h-14 md:h-16 w-auto mb-5 mx-auto lg:mx-0"
               />
 
               <h1 className="font-display text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight mb-4" style={{ color: "#EBEFF5" }}>
