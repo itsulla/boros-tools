@@ -12,6 +12,10 @@ import Simulator from "@/pages/Simulator";
 import Heatmap from "@/pages/Heatmap";
 import Yields from "@/pages/Yields";
 import Strategies from "@/pages/Strategies";
+import Calculator from "@/pages/Calculator";
+import Calendar from "@/pages/Calendar";
+import History from "@/pages/History";
+import Rewards from "@/pages/Rewards";
 
 function AppRouter() {
   return (
@@ -23,6 +27,10 @@ function AppRouter() {
       <Route path="/heatmap" component={Heatmap} />
       <Route path="/yields" component={Yields} />
       <Route path="/strategies" component={Strategies} />
+      <Route path="/calculator" component={Calculator} />
+      <Route path="/calendar" component={Calendar} />
+      <Route path="/history" component={History} />
+      <Route path="/rewards" component={Rewards} />
       <Route component={NotFound} />
     </Switch>
   );

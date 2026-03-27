@@ -11,6 +11,13 @@ export const NAV_LINKS = [
   { label: "Strategies", href: "/strategies" },
 ] as const;
 
+export const PENDLE_TOOLS_LINKS = [
+  { label: "Calculator", href: "/calculator" },
+  { label: "Calendar", href: "/calendar" },
+  { label: "History", href: "/history" },
+  { label: "Rewards", href: "/rewards" },
+] as const;
+
 export const EXTERNAL_LINKS = {
   pendle: "https://www.pendle.finance",
   boros: "https://boros.pendle.finance",

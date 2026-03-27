@@ -25,6 +25,22 @@ export interface PendleStatus {
   isStale: boolean;
 }
 
+export interface PendleMarketRaw {
+  address: string;
+  chainId: number;
+  name: string;
+  expiry: string;
+  asset: string;
+  impliedApy: number;
+  underlyingApy: number;
+  aggregatedApy: number;
+  totalTvl: number;
+  liquidity: number;
+  categoryIds: string[];
+  isNew: boolean;
+  isPrime: boolean;
+}
+
 // Generic fetch with timeout and fallback
 async function safeFetch<T>(url: string, fallback: T, options?: RequestInit): Promise<T> {
   try {
@@ -415,6 +431,38 @@ export function usePendleStatus() {
     queryKey: ["pendle-status"],
     queryFn: () => safeFetch<PendleStatus | null>("/api/pendle/status", null),
     staleTime: 60_000,
+  });
+}
+
+// Raw Pendle market list (with chainId, address, expiry)
+export function usePendleMarketList(params?: { hasPoints?: boolean; minTvl?: number }) {
+  const qs = new URLSearchParams();
+  if (params?.hasPoints) qs.set("hasPoints", "true");
+  if (params?.minTvl) qs.set("minTvl", String(params.minTvl));
+  return useQuery<PendleMarketRaw[]>({
+    queryKey: ["pendle-markets-raw", params?.hasPoints, params?.minTvl],
+    queryFn: () => safeFetch<PendleMarketRaw[] | null>(`/api/pendle/markets-raw?${qs}`, null).then((d) => d ?? []),
+    staleTime: 300_000,
+  });
+}
+
+// APY history for a single market
+export function usePendleHistory(chainId: number | null, address: string | null) {
+  return useQuery({
+    queryKey: ["pendle-history", chainId, address],
+    queryFn: () => safeFetch<any>(`/api/pendle/history?chainId=${chainId}&address=${address}`, null),
+    enabled: chainId !== null && address !== null,
+    staleTime: 300_000,
+  });
+}
+
+// Single market detail (for reward breakdown)
+export function usePendleMarketDetail(chainId: number | null, address: string | null) {
+  return useQuery({
+    queryKey: ["pendle-market-detail", chainId, address],
+    queryFn: () => safeFetch<any>(`/api/pendle/market-detail?chainId=${chainId}&address=${address}`, null),
+    enabled: chainId !== null && address !== null,
+    staleTime: 300_000,
   });
 }
 
