@@ -4,6 +4,23 @@ import { PageContainer, StickyCTA } from "@/components/Layout";
 import { usePendleMarketList, formatUSD, type PendleMarketRaw } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 
+const CHAIN_NAMES: Record<number, string> = {
+  1: "Ethereum",
+  42161: "Arbitrum",
+  56: "BSC",
+  8453: "Base",
+  10: "Optimism",
+  5000: "Mantle",
+  146: "Sonic",
+  534352: "Scroll",
+  81457: "Blast",
+  59144: "Linea",
+};
+
+function chainName(id: number): string {
+  return CHAIN_NAMES[id] ?? `Chain ${id}`;
+}
+
 function classifyAsset(m: PendleMarketRaw): "stables" | "eth" | "btc" | "other" {
   const cats = m.categoryIds ?? [];
   if (cats.includes("stables")) return "stables";
@@ -270,7 +287,7 @@ export default function Portfolio() {
                             {m.isNew && <span className="bg-blue-500/10 text-blue-400 border border-blue-500/30 px-1.5 py-0.5 rounded-full text-[10px] font-semibold">New</span>}
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-muted-foreground">{m.chainId}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{chainName(m.chainId)}</td>
                         <td className="px-4 py-3 text-muted-foreground">{classifyAsset(m) === "stables" ? "Stablecoin" : classifyAsset(m) === "eth" ? "ETH" : classifyAsset(m) === "btc" ? "BTC" : m.asset}</td>
                         <td className="px-4 py-3 text-right font-mono tabular-nums">{formatUSD(allocation)}</td>
                         <td className="px-4 py-3 text-right font-mono tabular-nums">{(weight * 100).toFixed(1)}%</td>
