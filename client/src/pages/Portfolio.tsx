@@ -255,7 +255,7 @@ export default function Portfolio() {
                           </div>
                         </td>
                         <td className="px-4 py-3 text-muted-foreground">{m.chainId}</td>
-                        <td className="px-4 py-3 text-muted-foreground">{m.asset}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{classifyAsset(m) === "stables" ? "Stablecoin" : classifyAsset(m) === "eth" ? "ETH" : classifyAsset(m) === "btc" ? "BTC" : m.asset}</td>
                         <td className="px-4 py-3 text-right font-mono tabular-nums">{formatUSD(allocation)}</td>
                         <td className="px-4 py-3 text-right font-mono tabular-nums">{(weight * 100).toFixed(1)}%</td>
                         <td className="px-4 py-3 text-right font-mono tabular-nums text-primary">{(m.impliedApy * 100).toFixed(2)}%</td>
