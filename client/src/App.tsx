@@ -16,6 +16,7 @@ import Calculator from "@/pages/Calculator";
 import Calendar from "@/pages/Calendar";
 import History from "@/pages/History";
 import Rewards from "@/pages/Rewards";
+import Portfolio from "@/pages/Portfolio";
 
 function AppRouter() {
   return (
@@ -31,6 +32,7 @@ function AppRouter() {
       <Route path="/calendar" component={Calendar} />
       <Route path="/history" component={History} />
       <Route path="/rewards" component={Rewards} />
+      <Route path="/portfolio" component={Portfolio} />
       <Route component={NotFound} />
     </Switch>
   );

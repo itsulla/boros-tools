@@ -16,6 +16,7 @@ export const PENDLE_TOOLS_LINKS = [
   { label: "Calendar", href: "/calendar" },
   { label: "History", href: "/history" },
   { label: "Rewards", href: "/rewards" },
+  { label: "Portfolio", href: "/portfolio" },
 ] as const;
 
 export const EXTERNAL_LINKS = {
