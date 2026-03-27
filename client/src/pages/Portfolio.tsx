@@ -4,11 +4,11 @@ import { PageContainer, StickyCTA } from "@/components/Layout";
 import { usePendleMarketList, formatUSD, type PendleMarketRaw } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 
-function classifyAsset(asset: string): "stables" | "eth" | "btc" | "other" {
-  const a = asset.toLowerCase();
-  if (["usdc", "usdt", "usde", "susde", "usdg", "usd0", "crvusd", "gho", "dai", "frax"].some(s => a.includes(s)) || a.includes("usd") || a.includes("stable")) return "stables";
-  if (["wsteth", "weeth", "eeth", "steth", "reth", "cbeth", "meth", "sweth"].some(s => a.includes(s)) || a.includes("eth")) return "eth";
-  if (["wbtc", "tbtc", "cbbtc", "sbtc"].some(s => a.includes(s)) || a.includes("btc")) return "btc";
+function classifyAsset(m: PendleMarketRaw): "stables" | "eth" | "btc" | "other" {
+  const cats = m.categoryIds ?? [];
+  if (cats.includes("stables")) return "stables";
+  if (cats.includes("eth")) return "eth";
+  if (cats.includes("btc")) return "btc";
   return "other";
 }
 
@@ -63,7 +63,7 @@ export default function Portfolio() {
       const daysToMaturity = Math.ceil((new Date(m.expiry).getTime() - Date.now()) / 86400000);
       if (daysToMaturity <= 0) return false;
       if (m.totalTvl < minTvl) return false;
-      if (assetClass !== "all" && classifyAsset(m.asset) !== assetClass) return false;
+      if (assetClass !== "all" && classifyAsset(m) !== assetClass) return false;
       return true;
     });
   }, [markets, assetClass, minTvl]);
