@@ -17,6 +17,14 @@ import {
   type RecentTrade,
 } from "./demo-data";
 
+export interface PendleStatus {
+  lastSyncAt: string | null;
+  nextSyncAt: string;
+  marketCount: number;
+  weeklyRemaining: number | null;
+  isStale: boolean;
+}
+
 // Generic fetch with timeout and fallback
 async function safeFetch<T>(url: string, fallback: T, options?: RequestInit): Promise<T> {
   try {
@@ -268,15 +276,25 @@ export function useFundingRates() {
   });
 }
 
-// Yield pools (from DefiLlama + Boros)
+// Yield pools — Pendle V2 live data + Boros demo rows
 export function useYieldPools() {
   return useQuery<YieldPool[]>({
     queryKey: ["yield-pools"],
     queryFn: async () => {
-      // Always return demo data as DefiLlama can be slow/CORS blocked
+      try {
+        const pendlePools = await safeFetch<YieldPool[]>("/api/pendle/markets", null);
+        if (pendlePools && pendlePools.length > 0) {
+          // Merge live Pendle data with Boros rows from demo (Boros has its own live API)
+          const borosRows = DEMO_YIELD_POOLS.filter((p) => p.protocol === "Boros");
+          return [...borosRows, ...pendlePools];
+        }
+      } catch {
+        // fall through to demo data
+      }
       return DEMO_YIELD_POOLS;
     },
-    staleTime: 300000,
+    staleTime: 300_000,
+    refetchInterval: 300_000,
   });
 }
 
@@ -288,6 +306,15 @@ export function useHeatmapData() {
       return DEMO_HEATMAP_DATA;
     },
     staleTime: 60000,
+  });
+}
+
+// Pendle sync status
+export function usePendleStatus() {
+  return useQuery<PendleStatus | null>({
+    queryKey: ["pendle-status"],
+    queryFn: () => safeFetch<PendleStatus>("/api/pendle/status", null),
+    staleTime: 60_000,
   });
 }
 
