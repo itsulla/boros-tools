@@ -9,7 +9,7 @@ function BorosLogo() {
       <div className="flex items-center gap-2 cursor-pointer">
         <img
           src="./brand/boros-by-pendle-logo.svg"
-          alt="Boros by Pendle"
+          alt="UseBoros"
           className="h-9 sm:h-10 w-auto"
           style={{ minWidth: "150px" }}
         />
@@ -161,11 +161,11 @@ export function Footer() {
           <div>
             <img
               src="./brand/boros-by-pendle-logo.svg"
-              alt="Boros by Pendle"
+              alt="UseBoros"
               className="h-7 w-auto mb-4 opacity-70"
             />
             <p className="text-xs text-muted-foreground/60 leading-relaxed">
-              Analytics & tools for<br />Pendle Boros trading
+              UseBoros — Analytics & tools<br />for Pendle Boros trading
             </p>
           </div>
           <div>
@@ -251,7 +251,7 @@ export function StickyCTA({ text }: { text?: string }) {
     <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border/50 backdrop-blur-xl" style={{ backgroundColor: "rgba(13, 20, 32, 0.9)" }}>
       <div className="mx-auto max-w-7xl px-4 py-3 flex items-center justify-between">
         <p className="text-sm text-muted-foreground hidden sm:block">
-          {text || "Ready to trade? Lock in rates on Boros"}
+          {text || "UseBoros — Lock in rates on Boros"}
         </p>
         <a
           href={BOROS_REFERRAL_URL}

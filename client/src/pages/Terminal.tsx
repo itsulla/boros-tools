@@ -198,7 +198,7 @@ export default function Terminal() {
         </div>
       </div>
 
-      <StickyCTA text="Ready to trade? Lock in rates on Boros" />
+      <StickyCTA text="UseBoros — Lock in rates on Boros" />
     </PageContainer>
   );
 }

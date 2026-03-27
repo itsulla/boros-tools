@@ -243,7 +243,7 @@ export default function Yields() {
         </div>
       )}
 
-      <StickyCTA text="Lock in the best rate on Boros" />
+      <StickyCTA text="UseBoros — Lock in the best rate" />
     </PageContainer>
   );
 }

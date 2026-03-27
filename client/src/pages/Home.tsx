@@ -70,12 +70,12 @@ export default function Home() {
             <div className="flex-1 text-center lg:text-left">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-primary/30 bg-primary/5 text-primary text-xs font-medium mb-6">
                 <Activity className="w-3 h-3" />
-                Powered by Pendle Boros
+                UseBoros — Powered by Pendle
               </div>
 
               <img
                 src="./brand/boros-by-pendle-logo.svg"
-                alt="Boros by Pendle"
+                alt="UseBoros"
                 className="h-14 md:h-16 w-auto mb-5 mx-auto lg:mx-0"
               />
 
@@ -84,7 +84,7 @@ export default function Home() {
                 <span className="gradient-text">Analytics</span>
               </h1>
               <p className="text-base md:text-lg max-w-xl mx-auto lg:mx-0 mb-8" style={{ color: "#9DAFCD" }}>
-                Real-time analytics and tools for Pendle Boros funding rate trading
+                UseBoros — Real-time analytics and tools for Pendle Boros funding rate trading
               </p>
               <div className="flex items-center justify-center lg:justify-start gap-3">
                 <Link href="/terminal">
