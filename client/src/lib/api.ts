@@ -282,7 +282,7 @@ export function useYieldPools() {
     queryKey: ["yield-pools"],
     queryFn: async () => {
       try {
-        const pendlePools = await safeFetch<YieldPool[]>("/api/pendle/markets", null);
+        const pendlePools = await safeFetch<YieldPool[] | null>("/api/pendle/markets", null);
         if (pendlePools && pendlePools.length > 0) {
           // Merge live Pendle data with Boros rows from demo (Boros has its own live API)
           const borosRows = DEMO_YIELD_POOLS.filter((p) => p.protocol === "Boros");
@@ -313,7 +313,7 @@ export function useHeatmapData() {
 export function usePendleStatus() {
   return useQuery<PendleStatus | null>({
     queryKey: ["pendle-status"],
-    queryFn: () => safeFetch<PendleStatus>("/api/pendle/status", null),
+    queryFn: () => safeFetch<PendleStatus | null>("/api/pendle/status", null),
     staleTime: 60_000,
   });
 }
