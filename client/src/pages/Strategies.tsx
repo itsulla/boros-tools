@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ArrowRight, ExternalLink, ChevronDown, ChevronUp } from "lucide-react";
 import { PageContainer, StickyCTA } from "@/components/Layout";
-import { useBorosMarkets, formatPercent } from "@/lib/api";
+import { useBorosMarkets, useYieldPools, formatPercent } from "@/lib/api";
 import { BOROS_REFERRAL_URL } from "@/lib/constants";
 
 interface Strategy {
@@ -105,6 +105,10 @@ function StrategyCard({ strategy }: { strategy: Strategy }) {
   const { data: markets } = useBorosMarkets();
   const btcMarket = markets?.find((m) => m.underlying === "BTC");
   const ethMarket = markets?.find((m) => m.underlying === "ETH");
+  const { data: pools } = useYieldPools();
+  const bestPendleApy = pools
+    ?.filter((p) => p.protocol === "Pendle V2" && p.apy > 0)
+    .sort((a, b) => b.apy - a.apy)[0]?.apy ?? null;
 
   return (
     <div className="bg-card border border-card-border rounded-xl overflow-hidden pendle-glow" data-testid={`strategy-${strategy.id}`}>
@@ -160,7 +164,7 @@ function StrategyCard({ strategy }: { strategy: Strategy }) {
           {/* Current opportunity */}
           <div className="bg-background/50 rounded-lg p-4">
             <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Current Opportunity</h4>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
               <div>
                 <p className="text-[11px] text-muted-foreground">BTC Implied APR</p>
                 <p className="text-sm font-bold tabular-nums text-primary">
@@ -180,6 +184,12 @@ function StrategyCard({ strategy }: { strategy: Strategy }) {
               <div>
                 <p className="text-[11px] text-muted-foreground">Best For</p>
                 <p className="text-sm text-muted-foreground">{strategy.who}</p>
+              </div>
+              <div>
+                <p className="text-[11px] text-muted-foreground">Best Pendle V2 PT</p>
+                <p className="text-sm font-bold tabular-nums text-secondary">
+                  {bestPendleApy !== null ? `+${bestPendleApy.toFixed(2)}%` : "—"}
+                </p>
               </div>
             </div>
           </div>
