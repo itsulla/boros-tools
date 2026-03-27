@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { Fragment, useState, useMemo } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { PageContainer, StickyCTA } from "@/components/Layout";
 import { usePendleMarketList, usePendleMarketDetail, formatUSD } from "@/lib/api";
@@ -163,9 +163,8 @@ export default function Rewards() {
               sorted.map((m) => {
                 const isExpanded = expandedMarket === m.address;
                 return (
-                  <>
+                  <Fragment key={m.address}>
                     <tr
-                      key={m.address}
                       onClick={() => toggleRow(m.address)}
                       className="border-b border-border/10 last:border-0 hover:bg-white/[0.02] cursor-pointer transition-colors"
                     >
@@ -205,7 +204,7 @@ export default function Rewards() {
                         </td>
                       </tr>
                     )}
-                  </>
+                  </Fragment>
                 );
               })}
           </tbody>

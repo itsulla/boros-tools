@@ -173,6 +173,9 @@ export async function registerRoutes(
     if (!chainId || !address) {
       return res.status(400).json({ error: "chainId and address are required" });
     }
+    const chainIdNum = parseInt(String(chainId), 10);
+    if (isNaN(chainIdNum)) return res.status(400).json({ error: "Invalid chainId" });
+    if (!/^0x[a-fA-F0-9]{40}$/.test(String(address))) return res.status(400).json({ error: "Invalid address" });
     try {
       const key = `history:${chainId}:${address}`;
       const data = await cachedFetch(key, async () => {
@@ -194,6 +197,9 @@ export async function registerRoutes(
     if (!chainId || !address) {
       return res.status(400).json({ error: "chainId and address are required" });
     }
+    const chainIdNum = parseInt(String(chainId), 10);
+    if (isNaN(chainIdNum)) return res.status(400).json({ error: "Invalid chainId" });
+    if (!/^0x[a-fA-F0-9]{40}$/.test(String(address))) return res.status(400).json({ error: "Invalid address" });
     try {
       const key = `detail:${chainId}:${address}`;
       const data = await cachedFetch(key, async () => {

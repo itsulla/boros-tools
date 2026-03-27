@@ -26,7 +26,7 @@ export default function Calculator() {
     );
     const fixedReturn = capital * selectedMarket.impliedApy * (daysToMaturity / 365);
     const variableReturn = capital * selectedMarket.underlyingApy * (daysToMaturity / 365);
-    const dailyReturn = fixedReturn / daysToMaturity;
+    const dailyReturn = daysToMaturity > 0 ? fixedReturn / daysToMaturity : 0;
     const advantage = fixedReturn - variableReturn;
     return { daysToMaturity, fixedReturn, variableReturn, dailyReturn, advantage };
   }, [selectedMarket, capital]);
