@@ -1,11 +1,12 @@
 import Database from "better-sqlite3";
-import { fileURLToPath } from "url";
-import { dirname, join } from "path";
+import { join } from "path";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-// Resolve relative to this source file, not process.cwd()
-const DB_PATH = join(__dirname, "..", "pendle-cache.db");
+// In production (CJS bundle), __dirname is available natively.
+// In dev (tsx/ESM), we use import.meta.url.
+// The DB file lives in the project root, one level above server/.
+const DB_PATH = typeof __dirname !== "undefined"
+  ? join(__dirname, "..", "pendle-cache.db")
+  : join(new URL(".", import.meta.url).pathname, "..", "pendle-cache.db");
 
 const CREATE_MARKETS = `
 CREATE TABLE IF NOT EXISTS markets (
