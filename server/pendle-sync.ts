@@ -1,9 +1,10 @@
 import type Database from "better-sqlite3";
 
 const PENDLE_API_BASE = "https://api-v2.pendle.finance/core/v1";
-// Fetch active markets from these chains. Each is one API call (~10 CU).
-// Total per sync: ~40 CU. At 5-min interval: ~40,320 CU/week (20% of 200k free tier).
-const CHAIN_IDS = [1, 42161, 56, 8453]; // Ethereum, Arbitrum, BSC, Base
+// Fallback chain IDs if the /chains endpoint fails
+const FALLBACK_CHAIN_IDS = [1, 42161, 56, 8453];
+// Cached chain list — refreshed on each sync cycle
+let cachedChainIds: number[] = FALLBACK_CHAIN_IDS;
 
 const SYNC_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes — never reduce this
 const BACKOFF_MS = 65 * 1000;            // 65s on 429
@@ -59,11 +60,27 @@ async function syncMarkets(db: Database.Database): Promise<void> {
     return;
   }
 
+  // Refresh supported chain list (1 CU, non-critical)
+  try {
+    const chainsRes = await fetch(`${PENDLE_API_BASE}/chains`, {
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (chainsRes.ok) {
+      const chainsBody = await chainsRes.json();
+      if (Array.isArray(chainsBody?.chainIds) && chainsBody.chainIds.length > 0) {
+        cachedChainIds = chainsBody.chainIds;
+      }
+    }
+  } catch {
+    // Non-critical — use cached/fallback chain list
+  }
+
   const allMarkets: any[] = [];
   let latestWeeklyRemaining: number | null = null;
 
   // Fetch each chain sequentially to stay well within rate limits
-  for (const chainId of CHAIN_IDS) {
+  for (const chainId of cachedChainIds) {
     try {
       const result = await fetchChainMarkets(chainId);
       latestWeeklyRemaining = result.weeklyRemaining ?? latestWeeklyRemaining;
@@ -146,7 +163,7 @@ async function syncMarkets(db: Database.Database): Promise<void> {
     VALUES (1, ?, ?, ?)
   `).run(new Date().toISOString(), latestWeeklyRemaining, allMarkets.length);
 
-  log(`synced ${allMarkets.length} markets across ${CHAIN_IDS.length} chains. Weekly CU remaining: ${latestWeeklyRemaining ?? "unknown"}`);
+  log(`synced ${allMarkets.length} markets across ${cachedChainIds.length} chains. Weekly CU remaining: ${latestWeeklyRemaining ?? "unknown"}`);
 }
 
 export function initPendleSync(db: Database.Database): void {
