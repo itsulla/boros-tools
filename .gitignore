@@ -8,3 +8,4 @@ vite.config.ts.*
 *.log
 .env
 .env.*
+pendle-cache.db
