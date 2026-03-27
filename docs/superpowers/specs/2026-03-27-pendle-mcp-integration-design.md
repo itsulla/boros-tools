@@ -43,18 +43,26 @@ Port the sync logic, SQLite storage, and Pendle API client from `pendle-finance/
 
 ```
 Express Server (existing PM2 process)
-  ├── server/pendle-db.ts      NEW — SQLite init + schema (markets, assets tables)
+  ├── server/pendle-db.ts      NEW — SQLite init + schema (markets, sync_meta tables)
   ├── server/pendle-sync.ts    NEW — 5-min sync loop, rate-limit tracking, circuit breaker
   ├── server/routes.ts         UPDATED — /api/pendle/markets, /api/pendle/status
-  └── server/index.ts          UPDATED — call initPendleSync() on startup
+  └── server/index.ts          UPDATED — init db + sync on startup, pass db to registerRoutes
 
 Frontend
   ├── client/src/lib/api.ts    UPDATED — useYieldPools, usePendleStatus
   ├── client/src/pages/Yields.tsx      UPDATED — live rows + last-updated badge
   └── client/src/pages/Strategies.tsx  UPDATED — best Pendle V2 rate in opportunity panel
 
-New npm dependency: better-sqlite3 + @types/better-sqlite3
+New npm dependencies:
+  dependencies:     better-sqlite3
+  devDependencies:  @types/better-sqlite3
 ```
+
+### Deployment note: `better-sqlite3` is a native addon
+
+`better-sqlite3` ships a prebuilt `.node` binary. It **cannot** be bundled by esbuild and must not be added to the bundle allowlist in `script/build.ts`. It must remain an external module. This means `node_modules/` must be present in the PM2 working directory at runtime. After deploying `dist/`, run `npm install --omit=dev` in the project root so `better-sqlite3` (and its `.node` file) are available to `dist/index.cjs`.
+
+The SQLite database file `pendle-cache.db` must be added to `.gitignore`.
 
 ---
 
@@ -74,10 +82,10 @@ New npm dependency: better-sqlite3 + @types/better-sqlite3
 ### Protections (all enforced in code, not just config)
 
 1. **Hard minimum interval** — 5 minutes between sync attempts, enforced in `pendle-sync.ts`. No configuration can reduce this.
-2. **Weekly CU circuit breaker** — every response includes `X-RateLimit-Weekly-Remaining`. If remaining < 5,000 CU, the sync loop pauses and logs `[pendle-sync] circuit breaker: weekly CU low, pausing syncs`.
+2. **Weekly CU circuit breaker** — every response includes `X-RateLimit-Weekly-Remaining`. Store the value in `sync_meta.weeklyRemaining` after each sync. At the start of each sync, read this value. If it is a non-null number less than 5,000, skip the sync and log a warning. If it is `NULL` (first boot, no prior sync), treat as "no data yet — proceed with sync".
 3. **429 backoff** — on a 429 response, back off 65 seconds (1 min + 5s buffer) before the next attempt. Never retries immediately.
 4. **Zero on-demand Pendle API calls** — all `/api/pendle/*` endpoints read from SQLite only. Pendle's API is never called in response to user HTTP traffic. Even 10,000 concurrent visitors generate exactly 1 Pendle API request every 5 minutes.
-5. **Stale data tolerance** — if a sync fails, the previous cached data remains available. The `/api/pendle/status` endpoint reports `lastSyncAt` so the frontend can warn users if data is stale > 15 minutes.
+5. **Stale data tolerance** — if a sync fails, the previous cached data remains available. The `/api/pendle/status` endpoint reports `isStale: true` when `lastSyncAt === null || Date.now() - Date.parse(lastSyncAt) > 15 * 60 * 1000`. There is no separate special-casing for the circuit breaker — once 15 minutes elapse without a successful sync, `isStale` becomes true naturally.
 
 ---
 
@@ -85,14 +93,32 @@ New npm dependency: better-sqlite3 + @types/better-sqlite3
 
 ### `server/pendle-db.ts`
 
-Initialises a `better-sqlite3` database at `pendle-cache.db` in the project root. Creates two tables:
+Initialises a `better-sqlite3` database. The file path must be resolved relative to the source file, **not** `process.cwd()`, to work correctly when PM2 starts the process from a different working directory:
+
+```typescript
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const DB_PATH = join(__dirname, '..', 'pendle-cache.db');
+```
+
+Creates two tables:
 
 **`markets` table** — flat schema mirroring the MCP server's storage:
 - Primary key: `(chainId, address)`
 - Columns: `address`, `chainId`, `name`, `expiry`, `pt`, `yt`, `sy`, `underlyingAsset`, `isNew`, `isPrime`, `isVolatile`, `details_liquidity`, `details_totalTvl`, `details_tradingVolume`, `details_underlyingApy`, `details_impliedApy`, `details_aggregatedApy`, `details_maxBoostedApy`, `details_totalPt`, `details_totalSy`, `details_totalSupply`, `points`, `externalProtocols`
 
-**`sync_meta` table** — tracks sync state:
-- `lastSyncAt` (ISO timestamp), `weeklyRemaining` (integer), `marketCount` (integer)
+**`sync_meta` table** — single-row table tracking sync state:
+```sql
+CREATE TABLE IF NOT EXISTS sync_meta (
+  id               INTEGER PRIMARY KEY DEFAULT 1,
+  lastSyncAt       TEXT,
+  weeklyRemaining  INTEGER,
+  marketCount      INTEGER
+);
+INSERT OR IGNORE INTO sync_meta (id) VALUES (1);
+```
+Updated with `INSERT OR REPLACE INTO sync_meta (id, lastSyncAt, weeklyRemaining, marketCount) VALUES (1, ?, ?, ?)`.
 
 Exports: `initPendleDb(): Database`
 
@@ -104,18 +130,30 @@ Responsibilities:
 - On call: runs an initial sync immediately (async, non-blocking — server starts regardless)
 - Schedules a recurring sync every 5 minutes via `setInterval`
 - Sync function:
-  1. Checks weekly CU remaining from DB — skip if < 5,000
-  2. Calls `GET https://api-v2.pendle.finance/core/v1/markets?isExpired=false&limit=100&sortField=details_totalTvl&sortOrder=desc`
-  3. Reads `X-RateLimit-Weekly-Remaining` header from response, stores in `sync_meta`
-  4. On 429: logs warning, schedules retry in 65 seconds (does not increment the regular interval)
-  5. On success: upserts market rows via `INSERT OR REPLACE INTO markets`; updates `sync_meta`
-  6. On any other error: logs error, leaves stale data intact, retries on next regular interval
+  1. Read `weeklyRemaining` from `sync_meta`. If it is a non-null number < 5,000, log a warning and skip this cycle.
+  2. Call `GET https://api-v2.pendle.finance/core/v1/markets?isExpired=false&limit=100&sortField=details_totalTvl&sortOrder=desc`. This returns markets across all supported chains (Ethereum, Arbitrum, BSC, etc.) — multi-chain is intentional and desirable for the Yields page.
+  3. Read `X-RateLimit-Weekly-Remaining` header from the response. Store in `sync_meta.weeklyRemaining`.
+  4. On 429: log warning, schedule one retry via `setTimeout(sync, 65_000)`. Do not proceed with the current attempt.
+  5. On success: upsert all market rows via `INSERT OR REPLACE INTO markets (...)`. Update `sync_meta` with current timestamp and market count.
+  6. On any other error: log error, leave stale data intact, let next regular interval handle retry.
+
+The sync function must record API field units correctly: the Pendle API returns `impliedApy` (and all APY fields) as a **decimal fraction** (e.g., `0.0542` = 5.42%). This value is stored as-is in `details_impliedApy`. The `* 100` conversion to display percentage happens only in the route handler when mapping to `YieldPool`.
 
 ---
 
 ## Backend: Updated Files
 
 ### `server/routes.ts`
+
+The `registerRoutes` signature is updated to accept the db instance:
+
+```typescript
+export async function registerRoutes(
+  httpServer: Server,
+  app: Express,
+  db: Database,
+): Promise<Server>
+```
 
 **`GET /api/pendle/markets`**
 
@@ -124,52 +162,56 @@ Query params (all optional):
 - `activeOnly` — boolean string, default `"true"` — filters `expiry > now()`
 - `minTvl` — number, default `1000000` — filters `details_totalTvl >= minTvl`
 
-Returns JSON array. Each element is mapped to the `YieldPool` shape:
+Queries SQLite. Maps each row to the `YieldPool` shape:
 
 ```typescript
 {
   protocol: "Pendle V2",
-  product: market.name,           // e.g. "PT-weETH-27JUN2026"
-  asset: deriveAsset(market),     // ETH, USDC, BTC, etc. — see mapping below
-  apy: market.details_impliedApy * 100,
+  product: market.name,               // e.g. "PT-weETH-27JUN2026"
+  asset: deriveAsset(market.name),    // see mapping below
+  apy: market.details_impliedApy * 100,  // stored as 0.054 → display as 5.4%
   type: "Fixed",
   maturity: formatExpiry(market.expiry),  // "Jun 27, 2026"
   riskLevel: deriveRisk(market),          // Low for ETH/stable, Medium otherwise
-  sourceUrl: `https://app.pendle.finance/trade/markets`,
+  sourceUrl: "https://app.pendle.finance/trade/markets",
   tvl: market.details_totalTvl,
 }
 ```
 
-Asset derivation (`deriveAsset`): pattern-matches `market.name` against known substrings:
-- `ETH`, `stETH`, `weETH`, `eETH`, `wstETH` → "ETH"
-- `USDC`, `USDT`, `DAI`, `crvUSD`, `GHO`, `FRAX`, `pyUSD` → respective stable symbol
-- `BTC`, `wBTC`, `cbBTC` → "BTC"
-- `SOL` → "SOL"
-- fallback → first uppercase token name found in market name
+`deriveAsset(name: string)` — pattern-matches market name against known substrings:
+- Contains `ETH`, `stETH`, `weETH`, `eETH`, `wstETH`, `rsETH` → `"ETH"`
+- Contains `USDC` → `"USDC"`; `USDT` → `"USDT"`; `DAI` → `"DAI"`; `GHO` → `"GHO"`; `crvUSD` → `"crvUSD"`; `FRAX` → `"FRAX"`
+- Contains `BTC`, `wBTC`, `cbBTC` → `"BTC"`
+- Contains `SOL` → `"SOL"`
+- Fallback: first all-caps token (≥2 chars) found in name, else `"OTHER"`
 
-Risk derivation (`deriveRisk`): ETH and stablecoins → "Low"; others → "Medium"; markets with `isVolatile=1` → "High"
+`deriveRisk(market)` — `"Low"` for ETH and stablecoins; `"High"` if `market.isVolatile === 1`; else `"Medium"`.
 
 **`GET /api/pendle/status`**
 
-Returns:
+Reads `sync_meta` row. Returns:
 ```typescript
 {
-  lastSyncAt: string | null,    // ISO timestamp
-  nextSyncAt: string,           // ISO timestamp
+  lastSyncAt: string | null,
+  nextSyncAt: string,           // lastSyncAt + 5min, or "imminent" if null
   marketCount: number,
   weeklyRemaining: number | null,
-  isStale: boolean,             // true if lastSyncAt > 15 min ago
+  isStale: boolean,             // lastSyncAt === null || age > 15 min
 }
 ```
 
 ### `server/index.ts`
 
-After `registerRoutes(...)`, add:
 ```typescript
 import { initPendleDb } from './pendle-db.js';
 import { initPendleSync } from './pendle-sync.js';
+
+// after createServer(app):
 const pendleDb = initPendleDb();
 initPendleSync(pendleDb);
+
+// pass db into registerRoutes:
+await registerRoutes(server, app, pendleDb);
 ```
 
 ---
@@ -180,32 +222,37 @@ initPendleSync(pendleDb);
 
 **`useYieldPools`** — updated:
 1. Fetches `GET /api/pendle/markets`
-2. On success: merges with Boros rows from `DEMO_YIELD_POOLS` (only Boros-protocol rows from the demo, since live Boros market data comes from `useBorosMarkets`)
+2. On success: merges with Boros-protocol rows from `DEMO_YIELD_POOLS` (keeps Boros rows since those come from the Boros API separately)
 3. On error / empty response: falls back to full `DEMO_YIELD_POOLS`
-4. The returned type remains `YieldPool[]` — no changes needed in `Yields.tsx` table rendering
+4. Returned type remains `YieldPool[]` — no changes needed in `Yields.tsx` table rendering
 
 **`usePendleStatus`** — new hook:
 ```typescript
 export function usePendleStatus() {
-  return useQuery({ queryKey: ["pendle-status"], queryFn: () => safeFetch('/api/pendle/status', null), staleTime: 60000 });
+  return useQuery({
+    queryKey: ["pendle-status"],
+    queryFn: () => safeFetch<PendleStatus>('/api/pendle/status', null),
+    staleTime: 60000,
+  });
 }
 ```
+Returns `PendleStatus | null`. All consumers must null-guard before accessing fields.
 
 ### `client/src/pages/Yields.tsx`
 
 - Import `usePendleStatus`
-- Add a small status indicator below the page title:
-  - If `status.isStale`: amber warning "Data may be outdated"
-  - Otherwise: muted "Updated X min ago"
-- No structural changes to the table or chart
+- Null-guard: `const status = usePendleStatus().data ?? null`
+- Add status indicator below page title (only when `status !== null`):
+  - `status.isStale` → amber "Data may be outdated"
+  - otherwise → muted "Updated X min ago" using `status.lastSyncAt`
 
 ### `client/src/pages/Strategies.tsx`
 
-In `StrategyCard`'s "Current Opportunity" panel, add a 5th stat cell:
+In `StrategyCard`'s "Current Opportunity" panel, add a 5th stat. The panel currently uses `grid grid-cols-2 sm:grid-cols-4`. Change to `grid grid-cols-2 sm:grid-cols-5` to accommodate the new cell cleanly. The new cell:
 - Label: "Best Pendle V2 PT"
-- Value: best `details_impliedApy` across all active markets from `/api/pendle/markets?limit=5`
-- Shown in secondary (blue) colour to distinguish from Boros teal rates
-- Falls back to `"—"` if unavailable
+- Value: highest `apy` from `useYieldPools().data?.filter(p => p.protocol === "Pendle V2")[0]?.apy`
+- Displayed in `text-secondary` (blue) to distinguish from Boros teal
+- Displays `"—"` if data is unavailable
 
 ---
 
@@ -213,20 +260,21 @@ In `StrategyCard`'s "Current Opportunity" panel, add a 5th stat cell:
 
 ```
 Pendle API (external)
-    │  once per 5 min, server-side
+    │  once per 5 min, server-side only
     ▼
-pendle-sync.ts  ──upsert──►  pendle-cache.db (SQLite)
+pendle-sync.ts  ──upsert──►  pendle-cache.db (SQLite, on disk)
                                     │
-                         read on every request
+                         read on every request (no API call)
                                     │
                                     ▼
               Express: GET /api/pendle/markets
+              Express: GET /api/pendle/status
                                     │
                          React Query (staleTime: 5min)
                                     │
                                     ▼
-                          Yields.tsx table rows
-                          Strategies.tsx stat cell
+                          Yields.tsx table rows + status badge
+                          Strategies.tsx "Best Pendle V2 PT" cell
 ```
 
 ---
@@ -235,27 +283,34 @@ pendle-sync.ts  ──upsert──►  pendle-cache.db (SQLite)
 
 | Scenario | Behaviour |
 |---|---|
-| Pendle API down at startup | Sync fails silently; DB is empty; frontend falls back to `DEMO_YIELD_POOLS` |
-| Sync fails mid-operation | Stale data remains; error logged; next sync in 5 min |
-| 429 rate limit hit | 65s backoff; no retry storm; frontend unaffected (served from cache) |
-| Weekly CU < 5,000 | Sync pauses; `isStale: true` surfaced to frontend |
-| `/api/pendle/markets` called with empty DB | Returns `[]`; frontend falls back to demo data |
-| PM2 restart | DB persists on disk; next sync runs within 5 min of restart |
+| Pendle API down at startup | Initial sync fails silently; DB has no rows; frontend falls back to `DEMO_YIELD_POOLS` |
+| Sync fails mid-operation | Stale data remains in DB; error logged; next sync in 5 min |
+| 429 rate limit hit | 65s single retry; no retry storm; frontend unaffected (served from SQLite) |
+| Weekly CU < 5,000 | Sync skips; `isStale: true` surfaces after 15 min; logged as warning |
+| `weeklyRemaining` is NULL (first boot) | Treat as "proceed" — no historical data to block on |
+| `/api/pendle/markets` with empty DB | Returns `[]`; frontend falls back to demo data |
+| PM2 restart | `pendle-cache.db` persists on disk; first sync within 5 min of restart |
+| `usePendleStatus` returns null | Components must null-guard before accessing `.isStale` or `.lastSyncAt` |
 
 ---
 
 ## Testing Checklist
 
-- [ ] `pendle-cache.db` is created on server startup
-- [ ] Initial sync populates `markets` table within 30 seconds
-- [ ] `/api/pendle/markets` returns well-formed `YieldPool` array
-- [ ] `/api/pendle/status` returns correct `lastSyncAt` and `marketCount`
+- [ ] `pendle-cache.db` is created on server startup (in correct directory, not `process.cwd()`)
+- [ ] `pendle-cache.db` is in `.gitignore`
+- [ ] Initial sync populates `markets` table within 30 seconds of server start
+- [ ] `/api/pendle/markets` returns well-formed `YieldPool` array with `apy > 0`
+- [ ] `/api/pendle/status` returns correct `lastSyncAt`, `marketCount`, and `isStale: false`
 - [ ] Yields page shows live Pendle V2 rows with real APYs and future maturity dates
-- [ ] Yields page shows "Updated X min ago" indicator
-- [ ] Strategies page shows "Best Pendle V2 PT" stat
-- [ ] Killing the Pendle API (mock with wrong URL) causes frontend to fall back to demo data gracefully
+- [ ] Yields page shows "Updated X min ago" status badge
+- [ ] Strategies page shows "Best Pendle V2 PT" stat in opportunity panel
+- [ ] `sm:grid-cols-5` layout on Strategies page does not break mobile (2-col) layout
+- [ ] Setting `PENDLE_API_URL` to a bad URL causes frontend to fall back to demo data gracefully
 - [ ] Sync does not fire more than once per 5 minutes under any condition
-- [ ] 429 response triggers 65s backoff, not an immediate retry
+- [ ] 429 response triggers exactly one 65s-delayed retry, not an immediate one
+- [ ] Simulating `weeklyRemaining < 5000` in DB causes sync to skip with logged warning
+- [ ] First boot with empty `sync_meta` (NULL `weeklyRemaining`) proceeds with sync correctly
+- [ ] `better-sqlite3` loads correctly in production (`dist/index.cjs` + `node_modules/`)
 
 ---
 
@@ -265,9 +320,10 @@ pendle-sync.ts  ──upsert──►  pendle-cache.db (SQLite)
 |---|---|
 | `server/pendle-db.ts` | NEW |
 | `server/pendle-sync.ts` | NEW |
-| `server/routes.ts` | UPDATED — add 2 endpoints |
-| `server/index.ts` | UPDATED — init sync on startup |
+| `server/routes.ts` | UPDATED — add `db` param + 2 endpoints |
+| `server/index.ts` | UPDATED — init db + sync, pass db to registerRoutes |
 | `client/src/lib/api.ts` | UPDATED — useYieldPools, usePendleStatus |
-| `client/src/pages/Yields.tsx` | UPDATED — status badge |
-| `client/src/pages/Strategies.tsx` | UPDATED — Pendle V2 stat in opportunity panel |
-| `package.json` | UPDATED — add better-sqlite3 |
+| `client/src/pages/Yields.tsx` | UPDATED — status badge + null guard |
+| `client/src/pages/Strategies.tsx` | UPDATED — 5th stat cell, grid-cols-5 |
+| `package.json` | UPDATED — `better-sqlite3` in deps, `@types/better-sqlite3` in devDeps |
+| `.gitignore` | UPDATED — add `pendle-cache.db` |
