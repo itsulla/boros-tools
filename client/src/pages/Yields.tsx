@@ -4,7 +4,7 @@ import {
 } from "recharts";
 import { ExternalLink, Shield, AlertTriangle, Flame } from "lucide-react";
 import { PageContainer, StickyCTA } from "@/components/Layout";
-import { useYieldPools, formatPercent, formatUSD } from "@/lib/api";
+import { useYieldPools, formatPercent, formatUSD, usePendleStatus } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BOROS_REFERRAL_URL } from "@/lib/constants";
 
@@ -35,6 +35,16 @@ export default function Yields() {
   const [assetFilter, setAssetFilter] = useState("All");
   const [sortBy, setSortBy] = useState<"apy" | "tvl">("apy");
 
+  const { data: pendleStatus } = usePendleStatus();
+
+  function syncAgeLabel(): string | null {
+    if (!pendleStatus?.lastSyncAt) return null;
+    const ageMs = Date.now() - new Date(pendleStatus.lastSyncAt).getTime();
+    const mins = Math.floor(ageMs / 60_000);
+    return mins < 1 ? "just now" : `${mins} min ago`;
+  }
+  const ageLabel = syncAgeLabel();
+
   const filtered = useMemo(() => {
     let result = pools ?? [];
     if (assetFilter !== "All") {
@@ -58,7 +68,20 @@ export default function Yields() {
   return (
     <PageContainer>
       <div className="mb-6">
-        <h1 className="font-display text-xl font-bold">Yield Comparison</h1>
+        <div className="flex items-center gap-3 flex-wrap">
+          <h1 className="font-display text-xl font-bold">Yield Comparison</h1>
+          {pendleStatus && (
+            pendleStatus.isStale ? (
+              <span className="text-[11px] px-2 py-0.5 rounded-full bg-chart-4/10 text-chart-4 border border-chart-4/30">
+                Data may be outdated
+              </span>
+            ) : ageLabel ? (
+              <span className="text-[11px] text-muted-foreground">
+                Updated {ageLabel}
+              </span>
+            ) : null
+          )}
+        </div>
         <p className="text-sm text-muted-foreground">Compare Boros vs DeFi vs CeFi yields</p>
       </div>
 
