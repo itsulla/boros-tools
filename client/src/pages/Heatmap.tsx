@@ -3,7 +3,7 @@ import { PageContainer, StickyCTA } from "@/components/Layout";
 import { useHeatmapData, formatPercent } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 
-const EXCHANGES = ["Binance", "Bybit", "Hyperliquid", "Boros Implied"];
+const EXCHANGES = ["Binance", "Bybit", "Hyperliquid", "Boros Implied", "Pendle PT"];
 type SortMode = "default" | "highest" | "lowest" | "spread";
 
 function rateToColor(rate: number): string {

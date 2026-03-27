@@ -298,14 +298,114 @@ export function useYieldPools() {
   });
 }
 
-// Heatmap data
+// Heatmap data — live CEX rates + Boros + Pendle PT best rates
 export function useHeatmapData() {
   return useQuery<HeatmapCell[]>({
     queryKey: ["heatmap-data"],
     queryFn: async () => {
-      return DEMO_HEATMAP_DATA;
+      const cells: HeatmapCell[] = [];
+      const HEATMAP_ASSETS = ["BTC", "ETH", "SOL"];
+
+      // 1. CEX funding rates (reuse the same fetch logic from useFundingRates)
+      // Binance
+      try {
+        const data = await safeFetch<any[]>("https://fapi.binance.com/fapi/v1/premiumIndex", []);
+        if (data && data.length > 0) {
+          for (const item of data) {
+            const sym = item.symbol as string;
+            if (["BTCUSDT", "ETHUSDT", "SOLUSDT"].includes(sym)) {
+              const asset = sym.replace("USDT", "");
+              const rate = parseFloat(item.lastFundingRate);
+              cells.push({ asset, exchange: "Binance", rate: +(rate * 3 * 365 * 100).toFixed(2) });
+            }
+          }
+        }
+      } catch { /* skip */ }
+
+      // Bybit
+      try {
+        for (const sym of ["BTCUSDT", "ETHUSDT", "SOLUSDT"]) {
+          const data = await safeFetch<any>(`https://api.bybit.com/v5/market/tickers?category=linear&symbol=${sym}`, null);
+          if (data?.result?.list?.[0]) {
+            const rate = parseFloat(data.result.list[0].fundingRate || "0");
+            cells.push({ asset: sym.replace("USDT", ""), exchange: "Bybit", rate: +(rate * 3 * 365 * 100).toFixed(2) });
+          }
+        }
+      } catch { /* skip */ }
+
+      // Hyperliquid
+      try {
+        const data = await safeFetch<any>("https://api.hyperliquid.xyz/info", null, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type: "metaAndAssetCtxs" }),
+        });
+        if (data && Array.isArray(data) && data.length >= 2) {
+          const symbols = data[0].universe?.map((u: any) => u.name) || [];
+          const ctxs = data[1];
+          for (const target of HEATMAP_ASSETS) {
+            const idx = symbols.indexOf(target);
+            if (idx >= 0 && ctxs[idx]) {
+              const rate = parseFloat(ctxs[idx].funding || "0");
+              cells.push({ asset: target, exchange: "Hyperliquid", rate: +(rate * 3 * 365 * 100).toFixed(2) });
+            }
+          }
+        }
+      } catch { /* skip */ }
+
+      // 2. Boros implied rates
+      try {
+        const borosData = await safeFetch<any>(`${BOROS_API_BASE}/v1/markets?skip=0&limit=20&isWhitelisted=true`, null);
+        if (borosData) {
+          const results = borosData.results || borosData;
+          if (Array.isArray(results)) {
+            for (const m of results) {
+              const asset = m.underlying || m.baseAsset;
+              if (asset && HEATMAP_ASSETS.includes(asset)) {
+                cells.push({ asset, exchange: "Boros Implied", rate: m.impliedApr ?? m.lastTradedRate ?? 0 });
+              }
+            }
+          }
+        }
+      } catch { /* skip */ }
+
+      // 3. Pendle PT best implied APY per asset
+      try {
+        const pendlePools = await safeFetch<YieldPool[] | null>("/api/pendle/markets?minTvl=500000", null);
+        if (pendlePools && pendlePools.length > 0) {
+          for (const asset of HEATMAP_ASSETS) {
+            const best = pendlePools
+              .filter((p) => p.asset === asset && p.apy > 0)
+              .sort((a, b) => b.apy - a.apy)[0];
+            if (best) {
+              cells.push({ asset, exchange: "Pendle PT", rate: best.apy });
+            }
+          }
+        }
+      } catch { /* skip */ }
+
+      // Fill missing from demo data
+      const exchanges = ["Binance", "Bybit", "Hyperliquid", "Boros Implied", "Pendle PT"];
+      for (const asset of HEATMAP_ASSETS) {
+        for (const ex of exchanges) {
+          if (!cells.some((c) => c.asset === asset && c.exchange === ex)) {
+            const demo = DEMO_HEATMAP_DATA.find((d) => d.asset === asset && d.exchange === ex);
+            if (demo) cells.push(demo);
+          }
+        }
+      }
+
+      // Also add non-core assets from demo data (ARB, DOGE, AVAX) for variety
+      for (const demo of DEMO_HEATMAP_DATA) {
+        if (!HEATMAP_ASSETS.includes(demo.asset) && !cells.some((c) => c.asset === demo.asset && c.exchange === demo.exchange)) {
+          cells.push(demo);
+        }
+      }
+
+      return cells.length > 0 ? cells : DEMO_HEATMAP_DATA;
     },
     staleTime: 60000,
+    refetchInterval: 120000,
   });
 }
 
