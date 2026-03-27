@@ -1,7 +1,9 @@
 import type Database from "better-sqlite3";
 
-const PENDLE_API =
-  "https://api-v2.pendle.finance/core/v1/markets?isExpired=false&limit=100&sortField=details_totalTvl&sortOrder=desc";
+const PENDLE_API_BASE = "https://api-v2.pendle.finance/core/v1";
+// Fetch active markets from these chains. Each is one API call (~10 CU).
+// Total per sync: ~40 CU. At 5-min interval: ~40,320 CU/week (20% of 200k free tier).
+const CHAIN_IDS = [1, 42161, 56, 8453]; // Ethereum, Arbitrum, BSC, Base
 
 const SYNC_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes — never reduce this
 const BACKOFF_MS = 65 * 1000;            // 65s on 429
@@ -10,6 +12,39 @@ const LOW_CU_THRESHOLD = 5_000;
 function log(msg: string) {
   const t = new Date().toLocaleTimeString("en-US", { hour12: true });
   console.log(`${t} [pendle-sync] ${msg}`);
+}
+
+async function fetchChainMarkets(
+  chainId: number,
+): Promise<{ markets: any[]; weeklyRemaining: number | null; rateLimited: boolean }> {
+  const url = `${PENDLE_API_BASE}/${chainId}/markets/active`;
+  const res = await fetch(url, {
+    headers: { Accept: "application/json" },
+    signal: AbortSignal.timeout(15_000),
+  });
+
+  const weeklyRemainingHeader = res.headers.get("x-ratelimit-weekly-remaining");
+  const weeklyRemaining = weeklyRemainingHeader ? parseInt(weeklyRemainingHeader, 10) : null;
+
+  if (res.status === 429) {
+    return { markets: [], weeklyRemaining, rateLimited: true };
+  }
+  if (!res.ok) {
+    log(`chain ${chainId}: unexpected status ${res.status}`);
+    return { markets: [], weeklyRemaining, rateLimited: false };
+  }
+
+  const body = await res.json();
+  // /active endpoint returns { markets: [...] }
+  const raw: any[] = Array.isArray(body?.markets)
+    ? body.markets
+    : Array.isArray(body)
+    ? body
+    : [];
+
+  // Inject chainId into each market (the /active endpoint doesn't always include it)
+  const markets = raw.map((m: any) => ({ ...m, chainId }));
+  return { markets, weeklyRemaining, rateLimited: false };
 }
 
 async function syncMarkets(db: Database.Database): Promise<void> {
@@ -24,48 +59,30 @@ async function syncMarkets(db: Database.Database): Promise<void> {
     return;
   }
 
-  let res: Response;
-  try {
-    res = await fetch(PENDLE_API, {
-      headers: { "Accept": "application/json" },
-      signal: AbortSignal.timeout(15_000),
-    });
-  } catch (err) {
-    log(`fetch error: ${err}. Will retry next interval.`);
-    return;
+  const allMarkets: any[] = [];
+  let latestWeeklyRemaining: number | null = null;
+
+  // Fetch each chain sequentially to stay well within rate limits
+  for (const chainId of CHAIN_IDS) {
+    try {
+      const result = await fetchChainMarkets(chainId);
+      latestWeeklyRemaining = result.weeklyRemaining ?? latestWeeklyRemaining;
+
+      if (result.rateLimited) {
+        log(`rate limited on chain ${chainId}. Backing off ${BACKOFF_MS / 1000}s.`);
+        setTimeout(() => syncMarkets(db), BACKOFF_MS);
+        return;
+      }
+
+      allMarkets.push(...result.markets);
+    } catch (err) {
+      log(`chain ${chainId} fetch error: ${err}`);
+      // Continue to next chain — partial data is better than no data
+    }
   }
 
-  // Read rate-limit headers from every response
-  const weeklyRemainingHeader = res.headers.get("x-ratelimit-weekly-remaining");
-  const newWeeklyRemaining = weeklyRemainingHeader ? parseInt(weeklyRemainingHeader, 10) : null;
-
-  if (res.status === 429) {
-    log(`rate limited (429). Backing off ${BACKOFF_MS / 1000}s.`);
-    setTimeout(() => syncMarkets(db), BACKOFF_MS);
-    return;
-  }
-
-  if (!res.ok) {
-    log(`unexpected status ${res.status}. Will retry next interval.`);
-    return;
-  }
-
-  let body: any;
-  try {
-    body = await res.json();
-  } catch (err) {
-    log(`JSON parse error: ${err}. Will retry next interval.`);
-    return;
-  }
-
-  const markets: any[] = Array.isArray(body?.results)
-    ? body.results
-    : Array.isArray(body)
-    ? body
-    : [];
-
-  if (markets.length === 0) {
-    log("response contained 0 markets — keeping stale data.");
+  if (allMarkets.length === 0) {
+    log("0 markets from all chains — keeping stale data.");
     return;
   }
 
@@ -90,43 +107,46 @@ async function syncMarkets(db: Database.Database): Promise<void> {
 
   const upsertMany = db.transaction((rows: any[]) => {
     for (const m of rows) {
+      const det = m.details ?? {};
       upsert.run({
         address: m.address ?? "",
         chainId: m.chainId ?? 0,
         name: m.name ?? null,
         expiry: m.expiry ?? null,
-        pt: m.pt?.address ?? m.pt ?? null,
-        yt: m.yt?.address ?? m.yt ?? null,
-        sy: m.sy?.address ?? m.sy ?? null,
-        underlyingAsset: m.underlyingAsset?.address ?? m.underlyingAsset ?? null,
+        // /active endpoint returns pt/yt/sy as string IDs ("chainId-address")
+        pt: typeof m.pt === "string" ? m.pt : m.pt?.address ?? null,
+        yt: typeof m.yt === "string" ? m.yt : m.yt?.address ?? null,
+        sy: typeof m.sy === "string" ? m.sy : m.sy?.address ?? null,
+        underlyingAsset: typeof m.underlyingAsset === "string" ? m.underlyingAsset : m.underlyingAsset?.address ?? null,
         isNew: m.isNew ? 1 : 0,
         isPrime: m.isPrime ? 1 : 0,
         isVolatile: m.isVolatile ? 1 : 0,
-        details_liquidity: m.details?.liquidity ?? null,
-        details_totalTvl: m.details?.totalTvl ?? null,
-        details_tradingVolume: m.details?.tradingVolume ?? null,
-        details_underlyingApy: m.details?.underlyingApy ?? null,
-        details_impliedApy: m.details?.impliedApy ?? null,
-        details_aggregatedApy: m.details?.aggregatedApy ?? null,
-        details_maxBoostedApy: m.details?.maxBoostedApy ?? null,
-        details_totalPt: m.details?.totalPt ?? null,
-        details_totalSy: m.details?.totalSy ?? null,
-        details_totalSupply: m.details?.totalSupply ?? null,
+        details_liquidity: det.liquidity ?? null,
+        // /active endpoint uses "liquidity" not "totalTvl" — store as both
+        details_totalTvl: det.totalTvl ?? det.liquidity ?? null,
+        details_tradingVolume: det.tradingVolume ?? null,
+        details_underlyingApy: det.underlyingApy ?? null,
+        details_impliedApy: det.impliedApy ?? null,
+        details_aggregatedApy: det.aggregatedApy ?? null,
+        details_maxBoostedApy: det.maxBoostedApy ?? null,
+        details_totalPt: det.totalPt ?? null,
+        details_totalSy: det.totalSy ?? null,
+        details_totalSupply: det.totalSupply ?? null,
         points: m.points ? JSON.stringify(m.points) : null,
         externalProtocols: m.externalProtocols ? JSON.stringify(m.externalProtocols) : null,
       });
     }
   });
 
-  upsertMany(markets);
+  upsertMany(allMarkets);
 
   // Update sync_meta
   db.prepare(`
     INSERT OR REPLACE INTO sync_meta (id, lastSyncAt, weeklyRemaining, marketCount)
     VALUES (1, ?, ?, ?)
-  `).run(new Date().toISOString(), newWeeklyRemaining, markets.length);
+  `).run(new Date().toISOString(), latestWeeklyRemaining, allMarkets.length);
 
-  log(`synced ${markets.length} markets. Weekly CU remaining: ${newWeeklyRemaining ?? "unknown"}`);
+  log(`synced ${allMarkets.length} markets across ${CHAIN_IDS.length} chains. Weekly CU remaining: ${latestWeeklyRemaining ?? "unknown"}`);
 }
 
 export function initPendleSync(db: Database.Database): void {
