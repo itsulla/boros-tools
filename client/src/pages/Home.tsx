@@ -83,7 +83,7 @@ export default function Home() {
                 Funding Rate{" "}
                 <span className="gradient-text">Analytics</span>
               </h1>
-              <p className="text-base md:text-lg max-w-xl mx-auto lg:mx-0 mb-8" style={{ color: "#9DAFCD" }}>
+              <p className="text-base md:text-lg text-muted-foreground max-w-xl mx-auto lg:mx-0 mb-8">
                 UseBoros — Real-time analytics and tools for Pendle Boros funding rate trading
               </p>
               <div className="flex items-center justify-center lg:justify-start gap-3">
