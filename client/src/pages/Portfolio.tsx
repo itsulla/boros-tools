@@ -20,13 +20,14 @@ function scoreMarket(m: PendleMarketRaw, maxTvl: number): number {
   return (m.impliedApy * 0.6) + (normalizedTvl * 0.3) + (maturityFactor * 0.1);
 }
 
-function autoAllocate(markets: PendleMarketRaw[], investment: number): { market: PendleMarketRaw; allocation: number; weight: number }[] {
+function autoAllocate(markets: PendleMarketRaw[], investment: number, maxPools: number): { market: PendleMarketRaw; allocation: number; weight: number }[] {
   if (markets.length === 0) return [];
-  const maxAlloc = 0.4; // 40% max per market
+  const capped = markets.slice(0, maxPools);
+  const maxAlloc = 1 / Math.max(maxPools, 1); // equal max weight per pool
   const result: { market: PendleMarketRaw; allocation: number; weight: number }[] = [];
   let remaining = investment;
 
-  for (const m of markets) {
+  for (const m of capped) {
     if (remaining <= 0) break;
     const maxForThis = investment * maxAlloc;
     const alloc = Math.min(remaining, maxForThis);
@@ -50,6 +51,7 @@ export default function Portfolio() {
   const [mode, setMode] = useState<"auto" | "advanced">("auto");
   const [investment, setInvestment] = useState(10000);
   const [assetClass, setAssetClass] = useState<"stables" | "eth" | "btc" | "all">("all");
+  const [maxPools, setMaxPools] = useState(3);
   const [minTvl, setMinTvl] = useState(1_000_000);
   // Advanced mode
   const [manualPositions, setManualPositions] = useState<Map<string, number>>(new Map());
@@ -75,8 +77,8 @@ export default function Portfolio() {
       .map(m => ({ market: m, score: scoreMarket(m, maxTvl) }))
       .filter(s => s.score > 0)
       .sort((a, b) => b.score - a.score);
-    return autoAllocate(scored.map(s => s.market), investment);
-  }, [mode, filteredMarkets, investment]);
+    return autoAllocate(scored.map(s => s.market), investment, maxPools);
+  }, [mode, filteredMarkets, investment, maxPools]);
 
   // For advanced mode
   const advancedResult = useMemo(() => {
@@ -138,6 +140,20 @@ export default function Portfolio() {
         {/* Min TVL filter */}
         <label className="block text-sm font-medium text-muted-foreground mb-2">Minimum TVL: {formatUSD(minTvl)}</label>
         <input type="range" min={100000} max={50000000} step={100000} value={minTvl} onChange={e => setMinTvl(Number(e.target.value))} className="w-full max-w-xs accent-primary" />
+
+        {/* Number of pools (auto mode only) */}
+        {mode === "auto" && (
+          <div className="mt-6">
+            <label className="block text-sm font-medium text-muted-foreground mb-2">Number of Pools: {maxPools}</label>
+            <div className="flex gap-1 bg-background border border-border rounded-lg p-1 w-fit">
+              {[2, 3, 5, 8, 10].map(n => (
+                <button key={n} onClick={() => setMaxPools(n)} className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${maxPools === n ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+                  {n}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Advanced mode: market picker */}
