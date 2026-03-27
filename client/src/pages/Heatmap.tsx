@@ -19,7 +19,7 @@ function rateToColor(rate: number): string {
 
 function rateTextColor(rate: number): string {
   if (rate < 0) return "text-destructive";
-  if (rate >= 10) return "text-primary";
+  if (rate > 0) return "text-secondary";
   return "text-foreground";
 }
 

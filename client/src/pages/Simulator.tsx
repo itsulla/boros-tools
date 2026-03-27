@@ -206,8 +206,8 @@ export default function Simulator() {
           {/* KPI cards */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {[
-              { label: "Estimated P&L", value: formatUSD(pnl), color: pnl >= 0 ? "text-primary" : "text-destructive" },
-              { label: "ROI %", value: `${roi >= 0 ? "+" : ""}${roi.toFixed(2)}%`, color: roi >= 0 ? "text-primary" : "text-destructive" },
+              { label: "Estimated P&L", value: formatUSD(pnl), color: pnl > 0 ? "text-secondary" : pnl < 0 ? "text-destructive" : "text-foreground" },
+              { label: "ROI %", value: `${roi >= 0 ? "+" : ""}${roi.toFixed(2)}%`, color: roi > 0 ? "text-secondary" : roi < 0 ? "text-destructive" : "text-foreground" },
               { label: "Break-even Rate", value: `${breakEvenRate.toFixed(2)}%`, color: "text-chart-4" },
               { label: "Margin Required", value: formatUSD(margin), color: "text-foreground" },
               { label: "Liquidation Rate", value: liqRate > 0 ? `${liqRate.toFixed(2)}%` : "N/A", color: "text-destructive" },
@@ -258,7 +258,7 @@ export default function Simulator() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <p className="text-[11px] text-muted-foreground mb-1">With Boros (Fixed)</p>
-                <p className={`text-lg font-bold tabular-nums ${pnl >= 0 ? "text-primary" : "text-destructive"}`}>
+                <p className={`text-lg font-bold tabular-nums ${pnl > 0 ? "text-secondary" : pnl < 0 ? "text-destructive" : "text-foreground"}`}>
                   {formatUSD(pnl)}
                 </p>
                 <p className="text-[10px] text-muted-foreground">Predictable outcome</p>

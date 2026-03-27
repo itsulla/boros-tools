@@ -8,8 +8,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 const ASSETS = ["BTC", "ETH", "SOL"] as const;
 
 function getArbColor(spread: number) {
-  if (Math.abs(spread) >= 2) return "text-primary";
-  if (Math.abs(spread) >= 1) return "text-chart-4";
+  if (spread > 0) return "text-secondary";
+  if (spread < 0) return "text-destructive";
   return "text-muted-foreground";
 }
 
@@ -95,7 +95,7 @@ export default function Arbitrage() {
                       <td className="py-3 px-4 text-muted-foreground">{rate.symbol}USDT</td>
                       <td className="py-3 px-4 text-right tabular-nums">{formatPercent(rate.annualizedRate)}</td>
                       <td className="py-3 px-4 text-right tabular-nums text-muted-foreground">{formatPercent(rate.avg7d)}</td>
-                      <td className="py-3 px-4 text-right tabular-nums text-primary">{formatPercent(borosImplied)}</td>
+                      <td className={`py-3 px-4 text-right tabular-nums ${borosImplied > 0 ? "text-secondary" : borosImplied < 0 ? "text-destructive" : "text-foreground"}`}>{formatPercent(borosImplied)}</td>
                       <td className={`py-3 px-4 text-right tabular-nums ${getArbColor(spread)}`}>
                         {formatPercent(spread)}
                       </td>

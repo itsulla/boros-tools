@@ -26,9 +26,9 @@ export default function Terminal() {
 
   const kpis = market
     ? [
-        { label: "Implied APR", value: formatPercent(market.impliedApr), color: "text-primary" },
+        { label: "Implied APR", value: formatPercent(market.impliedApr), color: market.impliedApr > 0 ? "text-secondary" : market.impliedApr < 0 ? "text-destructive" : "text-foreground" },
         { label: "Mark APR", value: formatPercent(market.markApr), color: "text-foreground" },
-        { label: "Underlying APR", value: formatPercent(market.underlyingApr), color: "text-secondary" },
+        { label: "Underlying APR", value: formatPercent(market.underlyingApr), color: market.underlyingApr > 0 ? "text-secondary" : market.underlyingApr < 0 ? "text-destructive" : "text-foreground" },
         { label: "Best Bid", value: market.bestBid.toFixed(2) + "%", color: "text-primary" },
         { label: "Best Ask", value: market.bestAsk.toFixed(2) + "%", color: "text-destructive" },
         { label: "Spread", value: market.spread.toFixed(2) + "%", color: "text-chart-4" },
