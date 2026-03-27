@@ -52,5 +52,11 @@ export function initPendleDb(): Database.Database {
   db.pragma("journal_mode = WAL");
   db.exec(CREATE_MARKETS);
   db.exec(CREATE_SYNC_META);
+  // Migration: add categoryIds column (idempotent)
+  try {
+    db.exec("ALTER TABLE markets ADD COLUMN categoryIds TEXT");
+  } catch {
+    // Column already exists — ignore
+  }
   return db;
 }

@@ -111,14 +111,14 @@ async function syncMarkets(db: Database.Database): Promise<void> {
       details_liquidity, details_totalTvl, details_tradingVolume,
       details_underlyingApy, details_impliedApy, details_aggregatedApy,
       details_maxBoostedApy, details_totalPt, details_totalSy, details_totalSupply,
-      points, externalProtocols
+      points, externalProtocols, categoryIds
     ) VALUES (
       @address, @chainId, @name, @expiry, @pt, @yt, @sy, @underlyingAsset,
       @isNew, @isPrime, @isVolatile,
       @details_liquidity, @details_totalTvl, @details_tradingVolume,
       @details_underlyingApy, @details_impliedApy, @details_aggregatedApy,
       @details_maxBoostedApy, @details_totalPt, @details_totalSy, @details_totalSupply,
-      @points, @externalProtocols
+      @points, @externalProtocols, @categoryIds
     )
   `);
 
@@ -151,6 +151,7 @@ async function syncMarkets(db: Database.Database): Promise<void> {
         details_totalSupply: det.totalSupply ?? null,
         points: m.points ? JSON.stringify(m.points) : null,
         externalProtocols: m.externalProtocols ? JSON.stringify(m.externalProtocols) : null,
+        categoryIds: m.categoryIds ? JSON.stringify(m.categoryIds) : null,
       });
     }
   });
