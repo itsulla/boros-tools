@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { ExternalLink, AlertTriangle, Plus, X } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { ExternalLink, AlertTriangle, Plus, X, Share2, Check } from "lucide-react";
 import { PageContainer, StickyCTA } from "@/components/Layout";
 import { usePendleMarketList, formatUSD, type PendleMarketRaw } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -73,6 +73,53 @@ export default function Portfolio() {
   // Advanced mode
   const [manualPositions, setManualPositions] = useState<Map<string, number>>(new Map());
   const [searchTerm, setSearchTerm] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    const hash = window.location.hash;
+    const searchPart = hash.split("?")[1];
+    if (!searchPart) return;
+    const params = new URLSearchParams(searchPart);
+
+    if (params.get("inv")) setInvestment(Number(params.get("inv")));
+    if (params.get("ac")) setAssetClass(params.get("ac") as any);
+    if (params.get("tvl")) setMinTvl(Number(params.get("tvl")));
+    if (params.get("pools")) setMaxPools(Number(params.get("pools")));
+    if (params.get("mode")) setMode(params.get("mode") as any);
+    if (params.get("pos")) {
+      const positions = new Map<string, number>();
+      params.get("pos")!.split(",").forEach(p => {
+        const [addr, amt] = p.split(":");
+        if (addr && amt) positions.set(addr, Number(amt));
+      });
+      setManualPositions(positions);
+    }
+  }, []); // run once on mount
+
+  function generateShareUrl(): string {
+    const params = new URLSearchParams();
+    params.set("inv", String(investment));
+    params.set("ac", assetClass);
+    params.set("tvl", String(minTvl));
+    params.set("mode", mode);
+    if (mode === "auto") {
+      params.set("pools", String(maxPools));
+    } else if (manualPositions.size > 0) {
+      const posStr = Array.from(manualPositions.entries())
+        .map(([addr, amt]) => `${addr}:${amt}`)
+        .join(",");
+      params.set("pos", posStr);
+    }
+    return `${window.location.origin}${window.location.pathname}#/portfolio?${params}`;
+  }
+
+  function handleShare() {
+    const url = generateShareUrl();
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
 
   const { data: markets, isLoading } = usePendleMarketList();
 
@@ -254,6 +301,26 @@ export default function Portfolio() {
               <p className="text-xs text-muted-foreground mb-1">Projected Monthly Return</p>
               <p className="text-2xl font-bold font-mono tabular-nums">{formatUSD(monthlyReturn)}</p>
             </div>
+          </div>
+
+          {/* Share button */}
+          <div className="flex items-center justify-end mb-4">
+            <button
+              onClick={handleShare}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-primary/30 text-primary rounded-lg hover:bg-primary/10 transition-colors"
+            >
+              {copied ? (
+                <>
+                  <Check className="w-3 h-3" />
+                  Link copied!
+                </>
+              ) : (
+                <>
+                  <Share2 className="w-3 h-3" />
+                  Share portfolio
+                </>
+              )}
+            </button>
           </div>
 
           {/* Allocation table */}
