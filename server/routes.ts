@@ -237,14 +237,14 @@ export async function registerRoutes(
         // Fetch from DefiLlama
         const [protocolRes, priceRes] = await Promise.all([
           fetch("https://api.llama.fi/protocol/pendle", { signal: AbortSignal.timeout(10_000) }),
-          fetch("https://api.llama.fi/prices/current/coingecko:pendle", { signal: AbortSignal.timeout(10_000) }),
+          fetch("https://api.coingecko.com/api/v3/simple/price?ids=pendle&vs_currencies=usd&include_market_cap=true", { signal: AbortSignal.timeout(10_000) }),
         ]);
 
         const protocol = protocolRes.ok ? await protocolRes.json() : null;
         const priceData = priceRes.ok ? await priceRes.json() : null;
 
-        const pendlePrice = priceData?.coins?.["coingecko:pendle"]?.price ?? null;
-        const mcap = priceData?.coins?.["coingecko:pendle"]?.mcap ?? null;
+        const pendlePrice = priceData?.pendle?.usd ?? null;
+        const mcap = priceData?.pendle?.usd_market_cap ?? null;
 
         // Extract staking TVL from chain breakdown
         const chainTvls = protocol?.currentChainTvls ?? {};
