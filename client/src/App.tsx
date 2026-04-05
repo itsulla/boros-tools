@@ -17,6 +17,10 @@ import Calendar from "@/pages/Calendar";
 import History from "@/pages/History";
 import Rewards from "@/pages/Rewards";
 import Portfolio from "@/pages/Portfolio";
+import Compare from "@/pages/Compare";
+import Screener from "@/pages/Screener";
+import Whales from "@/pages/Whales";
+import SPendle from "@/pages/SPendle";
 
 function AppRouter() {
   return (
@@ -33,6 +37,10 @@ function AppRouter() {
       <Route path="/history" component={History} />
       <Route path="/rewards" component={Rewards} />
       <Route path="/portfolio" component={Portfolio} />
+      <Route path="/compare" component={Compare} />
+      <Route path="/screener" component={Screener} />
+      <Route path="/whales" component={Whales} />
+      <Route path="/spendle" component={SPendle} />
       <Route component={NotFound} />
     </Switch>
   );
