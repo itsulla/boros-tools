@@ -47,11 +47,28 @@ CREATE TABLE IF NOT EXISTS sync_meta (
 INSERT OR IGNORE INTO sync_meta (id) VALUES (1);
 `;
 
+const CREATE_WHALE_EVENTS = `
+CREATE TABLE IF NOT EXISTS whale_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  timestamp TEXT NOT NULL,
+  chainId INTEGER NOT NULL,
+  marketAddress TEXT NOT NULL,
+  marketName TEXT NOT NULL,
+  asset TEXT NOT NULL,
+  eventType TEXT NOT NULL,
+  tvlBefore REAL,
+  tvlAfter REAL,
+  tvlChange REAL,
+  tvlChangePercent REAL
+);
+`;
+
 export function initPendleDb(): Database.Database {
   const db = new Database(DB_PATH);
   db.pragma("journal_mode = WAL");
   db.exec(CREATE_MARKETS);
   db.exec(CREATE_SYNC_META);
+  db.exec(CREATE_WHALE_EVENTS);
   // Migration: add categoryIds column (idempotent)
   try {
     db.exec("ALTER TABLE markets ADD COLUMN categoryIds TEXT");

@@ -215,5 +215,19 @@ export async function registerRoutes(
     }
   });
 
+  // GET /api/pendle/whales — recent large TVL movements
+  app.get("/api/pendle/whales", (req, res) => {
+    try {
+      const limit = Math.min(parseInt(String(req.query.limit ?? "50"), 10), 200);
+      const events = db.prepare(`
+        SELECT * FROM whale_events ORDER BY timestamp DESC LIMIT ?
+      `).all(limit);
+      res.json(events);
+    } catch (err) {
+      console.error("[pendle-routes] /api/pendle/whales error:", err);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
   return httpServer;
 }

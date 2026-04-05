@@ -103,6 +103,13 @@ async function syncMarkets(db: Database.Database): Promise<void> {
     return;
   }
 
+  // Snapshot current TVLs for whale detection (must happen BEFORE upsert)
+  const oldTvls = new Map<string, number>();
+  const existingRows = db.prepare("SELECT address, chainId, details_totalTvl FROM markets").all() as { address: string; chainId: number; details_totalTvl: number | null }[];
+  for (const row of existingRows) {
+    oldTvls.set(`${row.chainId}:${row.address}`, row.details_totalTvl ?? 0);
+  }
+
   // Upsert all markets
   const upsert = db.prepare(`
     INSERT OR REPLACE INTO markets (
@@ -157,6 +164,41 @@ async function syncMarkets(db: Database.Database): Promise<void> {
   });
 
   upsertMany(allMarkets);
+
+  // Detect whale events (large TVL changes)
+  const WHALE_TVL_THRESHOLD = 500000;
+  const WHALE_PCT_THRESHOLD = 0.10;
+  const now = new Date().toISOString();
+
+  const insertWhale = db.prepare(`
+    INSERT INTO whale_events (timestamp, chainId, marketAddress, marketName, asset, eventType, tvlBefore, tvlAfter, tvlChange, tvlChangePercent)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  for (const m of allMarkets) {
+    const addr = m.address ?? "";
+    const chainId = m.chainId ?? 0;
+    const det = m.details ?? {};
+    const newTvl = det.totalTvl ?? det.liquidity ?? 0;
+    const key = `${chainId}:${addr}`;
+    const oldTvl = oldTvls.get(key) ?? 0;
+
+    if (oldTvl === 0) continue; // Skip first-time markets
+
+    const change = newTvl - oldTvl;
+    const absChange = Math.abs(change);
+    const pctChange = oldTvl > 0 ? change / oldTvl : 0;
+
+    if (absChange >= WHALE_TVL_THRESHOLD || Math.abs(pctChange) >= WHALE_PCT_THRESHOLD) {
+      const eventType = change > 0 ? "LARGE_INFLOW" : "LARGE_OUTFLOW";
+      const asset = m.name?.match(/PT-([A-Za-z]+)/)?.[1] ?? "UNKNOWN";
+      insertWhale.run(now, chainId, addr, m.name ?? "", asset, eventType, oldTvl, newTvl, change, pctChange);
+      log(`whale event: ${eventType} ${m.name} TVL ${oldTvl.toFixed(0)} → ${newTvl.toFixed(0)} (${(pctChange * 100).toFixed(1)}%)`);
+    }
+  }
+
+  // Prune old whale events (keep 30 days)
+  db.prepare("DELETE FROM whale_events WHERE timestamp < datetime('now', '-30 days')").run();
 
   // Update sync_meta
   db.prepare(`
