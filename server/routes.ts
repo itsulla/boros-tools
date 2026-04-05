@@ -229,5 +229,88 @@ export async function registerRoutes(
     }
   });
 
+  // GET /api/pendle/spendle — sPENDLE staking dashboard data
+  app.get("/api/pendle/spendle", async (req, res) => {
+    try {
+      const key = "spendle-stats";
+      const data = await cachedFetch(key, async () => {
+        // Fetch from DefiLlama
+        const [protocolRes, priceRes] = await Promise.all([
+          fetch("https://api.llama.fi/protocol/pendle", { signal: AbortSignal.timeout(10_000) }),
+          fetch("https://api.llama.fi/prices/current/coingecko:pendle", { signal: AbortSignal.timeout(10_000) }),
+        ]);
+
+        const protocol = protocolRes.ok ? await protocolRes.json() : null;
+        const priceData = priceRes.ok ? await priceRes.json() : null;
+
+        const pendlePrice = priceData?.coins?.["coingecko:pendle"]?.price ?? null;
+        const mcap = priceData?.coins?.["coingecko:pendle"]?.mcap ?? null;
+
+        // Extract staking TVL from chain breakdown
+        const chainTvls = protocol?.currentChainTvls ?? {};
+        const stakingTvl = chainTvls["Ethereum-staking"] ?? null;
+        const totalTvl = protocol?.tvl?.[protocol.tvl.length - 1]?.totalLiquidityUSD ?? null;
+
+        // Get fee/revenue data from DefiLlama
+        let fees = null;
+        let revenue = null;
+        let holdersRevenue = null;
+        try {
+          const feesRes = await fetch("https://api.llama.fi/summary/fees/pendle?dataType=dailyFees", { signal: AbortSignal.timeout(10_000) });
+          if (feesRes.ok) {
+            const feesData = await feesRes.json();
+            const latest = feesData?.totalDataChart?.[feesData.totalDataChart.length - 1];
+            fees = latest ? latest[1] * 365 : null; // Annualize daily fees
+          }
+        } catch {}
+
+        try {
+          const revRes = await fetch("https://api.llama.fi/summary/fees/pendle?dataType=dailyRevenue", { signal: AbortSignal.timeout(10_000) });
+          if (revRes.ok) {
+            const revData = await revRes.json();
+            const latest = revData?.totalDataChart?.[revData.totalDataChart.length - 1];
+            revenue = latest ? latest[1] * 365 : null;
+          }
+        } catch {}
+
+        // Calculate sPENDLE APY
+        // 80% of revenue goes to stakers
+        holdersRevenue = revenue ? revenue * 0.8 : null;
+        const stakingApy = (holdersRevenue && stakingTvl && stakingTvl > 0)
+          ? holdersRevenue / stakingTvl
+          : null;
+
+        const stakingPctOfMcap = (stakingTvl && mcap && mcap > 0)
+          ? stakingTvl / mcap
+          : null;
+
+        // Daily buyback
+        const dailyBuyback = holdersRevenue ? holdersRevenue / 365 : null;
+        const dailyPendleBought = (dailyBuyback && pendlePrice && pendlePrice > 0)
+          ? dailyBuyback / pendlePrice
+          : null;
+
+        return {
+          pendlePrice,
+          mcap,
+          totalTvl,
+          stakingTvl,
+          stakingPctOfMcap,
+          annualFees: fees,
+          annualRevenue: revenue,
+          holdersRevenue,
+          stakingApy,
+          dailyBuyback,
+          dailyPendleBought,
+          tvlToMcapRatio: (totalTvl && mcap && mcap > 0) ? totalTvl / mcap : null,
+        };
+      });
+      res.json(data);
+    } catch (err) {
+      console.error("[pendle-routes] /api/pendle/spendle error:", err);
+      res.status(502).json({ error: "Unable to fetch sPENDLE data" });
+    }
+  });
+
   return httpServer;
 }
