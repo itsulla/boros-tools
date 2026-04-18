@@ -229,6 +229,60 @@ export async function registerRoutes(
     }
   });
 
+  // GET /api/pendle/movers — markets with largest APY change over lookback window
+  app.get("/api/pendle/movers", (req, res) => {
+    try {
+      const lookbackDays = Math.min(parseInt(String(req.query.lookbackDays ?? "7"), 10), 30);
+      const limit = Math.min(parseInt(String(req.query.limit ?? "10"), 10), 50);
+      const minTvl = Math.max(0, parseFloat(String(req.query.minTvl ?? "1000000")));
+
+      const rows = db.prepare(`
+        WITH latest_snapshot AS (
+          SELECT chainId, address, impliedApy AS prevApy,
+                 MAX(snapshotDate) AS snapshotDate
+          FROM market_snapshots
+          WHERE snapshotDate <= date('now', ?)
+          GROUP BY chainId, address
+        )
+        SELECT m.chainId, m.address, m.name,
+               m.details_impliedApy AS currentApy,
+               ls.prevApy AS previousApy,
+               m.details_totalTvl AS totalTvl,
+               m.expiry
+        FROM markets m
+        INNER JOIN latest_snapshot ls
+          ON m.chainId = ls.chainId AND m.address = ls.address
+        WHERE m.expiry > ?
+          AND m.details_totalTvl >= ?
+          AND ls.prevApy IS NOT NULL
+          AND ABS(m.details_impliedApy - ls.prevApy) >= 0.001
+        ORDER BY ABS(m.details_impliedApy - ls.prevApy) DESC
+        LIMIT ?
+      `).all(`-${lookbackDays} days`, new Date().toISOString(), minTvl, limit) as any[];
+
+      const now = Date.now();
+      const result = rows.map((r) => {
+        const expiryMs = Date.parse(r.expiry);
+        const daysToMaturity = Math.max(0, Math.ceil((expiryMs - now) / 86400000));
+        return {
+          chainId: r.chainId,
+          address: r.address,
+          name: r.name,
+          asset: deriveAsset(r.name ?? ""),
+          currentApy: r.currentApy ?? 0,
+          previousApy: r.previousApy ?? 0,
+          apyChangeBps: Math.round(((r.currentApy ?? 0) - (r.previousApy ?? 0)) * 10000),
+          totalTvl: r.totalTvl ?? 0,
+          daysToMaturity,
+        };
+      });
+      res.json(result);
+    } catch (err) {
+      console.error("[pendle-routes] /api/pendle/movers error:", err);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
   // GET /api/pendle/spendle — sPENDLE staking dashboard data
   app.get("/api/pendle/spendle", async (req, res) => {
     try {

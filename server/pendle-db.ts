@@ -69,6 +69,21 @@ export function initPendleDb(): Database.Database {
   db.exec(CREATE_MARKETS);
   db.exec(CREATE_SYNC_META);
   db.exec(CREATE_WHALE_EVENTS);
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS market_snapshots (
+      id              INTEGER PRIMARY KEY AUTOINCREMENT,
+      chainId         INTEGER NOT NULL,
+      address         TEXT    NOT NULL,
+      snapshotDate    TEXT    NOT NULL,
+      impliedApy      REAL,
+      underlyingApy   REAL,
+      totalTvl        REAL
+    );
+  `);
+  db.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_snapshots_market_date
+      ON market_snapshots (chainId, address, snapshotDate);
+  `);
   // Migration: add categoryIds column (idempotent)
   try {
     db.exec("ALTER TABLE markets ADD COLUMN categoryIds TEXT");

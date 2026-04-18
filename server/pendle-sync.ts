@@ -197,6 +197,33 @@ async function syncMarkets(db: Database.Database): Promise<void> {
     }
   }
 
+  // Daily APY snapshot for Market Movers feature
+  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const insertSnapshot = db.prepare(`
+    INSERT OR IGNORE INTO market_snapshots
+      (chainId, address, snapshotDate, impliedApy, underlyingApy, totalTvl)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `);
+  const snapshotTx = db.transaction((markets: any[]) => {
+    for (const m of markets) {
+      const addr = m.address ?? "";
+      const chainId = m.chainId ?? 0;
+      if (!addr || !chainId) continue;
+      insertSnapshot.run(
+        chainId,
+        addr,
+        today,
+        m.details?.impliedApy ?? null,
+        m.details?.underlyingApy ?? null,
+        m.details?.totalTvl ?? null,
+      );
+    }
+  });
+  snapshotTx(allMarkets);
+
+  // Prune snapshots older than 30 days
+  db.prepare(`DELETE FROM market_snapshots WHERE snapshotDate < date('now', '-30 days')`).run();
+
   // Prune old whale events (keep 30 days)
   db.prepare("DELETE FROM whale_events WHERE timestamp < datetime('now', '-30 days')").run();
 
