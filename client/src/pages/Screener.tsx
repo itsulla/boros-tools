@@ -6,6 +6,7 @@ import { usePendleMarketList, formatUSD, type PendleMarketRaw, useSparklines, sp
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMode } from "@/lib/mode-context";
 import { Sparkline } from "@/components/Sparkline";
+import { EmptyState } from "@/components/ui/empty-state";
 
 const CHAIN_NAMES: Record<number, string> = {
   1: "Ethereum",
@@ -380,8 +381,12 @@ export default function Screener() {
 
             {!isLoading && filtered.length === 0 && (
               <tr>
-                <td colSpan={visibleColumns.length} className="px-4 py-12 text-center text-muted-foreground text-sm">
-                  No markets match your filters.
+                <td colSpan={visibleColumns.length} className="px-0 py-0">
+                  <EmptyState
+                    icon={<Search className="w-5 h-5" />}
+                    title="No markets match your filters"
+                    description="Try lowering the minimum TVL or selecting a different chain."
+                  />
                 </td>
               </tr>
             )}

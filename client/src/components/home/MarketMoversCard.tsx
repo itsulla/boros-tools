@@ -1,5 +1,7 @@
+import { TrendingUp } from "lucide-react";
 import { useMarketMovers } from "@/lib/api";
 import { OpportunityCard } from "./OpportunityCard";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export function MarketMoversCard({ variant }: { variant: "compact" | "dense" }) {
   const { data: movers, isLoading } = useMarketMovers(7, variant === "dense" ? 3 : 1);
@@ -8,7 +10,12 @@ export function MarketMoversCard({ variant }: { variant: "compact" | "dense" }) 
   return (
     <OpportunityCard icon="📈" title="Biggest Movers (7d)" variant={variant} isLoading={isLoading} cta={{ label: "View history", href: "/history" }}>
       {list.length === 0 ? (
-        <p className="text-xs text-muted-foreground">Collecting data — check back in a few days.</p>
+        <EmptyState
+          icon={<TrendingUp className="w-4 h-4" />}
+          title="Collecting data"
+          description="Market movers appear after a few days of snapshots."
+          className="py-4"
+        />
       ) : (
         <div className="space-y-1.5">
           {list.map(m => {

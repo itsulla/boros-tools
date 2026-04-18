@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { TrendingUp, TrendingDown } from "lucide-react";
+import { TrendingUp, TrendingDown, Waves } from "lucide-react";
 import { PageContainer, StickyCTA } from "@/components/Layout";
 import { formatUSD } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 
 const CHAIN_NAMES: Record<number, string> = {
   1: "Ethereum", 42161: "Arbitrum", 56: "BSC", 8453: "Base",
@@ -78,8 +79,12 @@ export default function Whales() {
       {isLoading ? (
         <div className="space-y-3">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}</div>
       ) : filtered.length === 0 ? (
-        <div className="bg-card border border-card-border rounded-xl p-8 text-center text-muted-foreground text-sm">
-          No whale events detected yet. Events are captured during each 5-minute sync cycle when large TVL changes occur.
+        <div className="bg-card border border-card-border rounded-xl">
+          <EmptyState
+            icon={<Waves className="w-5 h-5" />}
+            title="No whale events yet"
+            description="Large TVL movements are detected every 5 minutes. Check back soon."
+          />
         </div>
       ) : (
         <div className="space-y-3 mb-16">

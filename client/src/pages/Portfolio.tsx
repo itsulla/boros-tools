@@ -1,8 +1,9 @@
 import { useState, useMemo, useEffect } from "react";
-import { ExternalLink, AlertTriangle, Plus, X, Share2, Check } from "lucide-react";
+import { ExternalLink, AlertTriangle, Plus, X, Share2, Check, PieChart } from "lucide-react";
 import { PageContainer, StickyCTA } from "@/components/Layout";
 import { usePendleMarketList, formatUSD, type PendleMarketRaw } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 
 const CHAIN_NAMES: Record<number, string> = {
   1: "Ethereum",
@@ -344,7 +345,7 @@ export default function Portfolio() {
                     const daysToMaturity = Math.ceil((new Date(m.expiry).getTime() - Date.now()) / 86400000);
                     const projectedReturn = allocation * m.impliedApy * (daysToMaturity / 365);
                     return (
-                      <tr key={m.address} className="border-b border-border/10 hover:bg-white/[0.02]">
+                      <tr key={m.address} className="border-b border-border/10 hover:bg-white/[0.04] transition-colors duration-150">
                         <td className="px-4 py-3 font-medium">
                           <div className="flex items-center gap-2 flex-wrap">
                             {m.name}
@@ -370,8 +371,20 @@ export default function Portfolio() {
           </div>
         </>
       ) : (
-        <div className="bg-card border border-card-border rounded-xl p-8 text-center text-muted-foreground text-sm mb-6">
-          {mode === "auto" ? "No markets match your filters. Try lowering the minimum TVL or selecting a different asset class." : "Add markets above to build your portfolio."}
+        <div className="bg-card border border-card-border rounded-xl mb-6">
+          {mode === "auto" ? (
+            <EmptyState
+              icon={<PieChart className="w-5 h-5" />}
+              title="No markets match your filters"
+              description="Try lowering the minimum TVL or selecting a different asset class."
+            />
+          ) : (
+            <EmptyState
+              icon={<PieChart className="w-5 h-5" />}
+              title="Build your portfolio"
+              description="Select markets above to see your blended APY and allocation."
+            />
+          )}
         </div>
       )}
 

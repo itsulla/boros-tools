@@ -1,9 +1,10 @@
 import { Fragment, useState, useMemo } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Gift } from "lucide-react";
 import { PageContainer, StickyCTA } from "@/components/Layout";
 import { usePendleMarketList, usePendleMarketDetail, formatUSD } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useMode } from "@/lib/mode-context";
+import { EmptyState } from "@/components/ui/empty-state";
 
 function RewardDetail({ chainId, address }: { chainId: number; address: string }) {
   const { data: detail, isLoading, isError, refetch } = usePendleMarketDetail(chainId, address);
@@ -165,8 +166,12 @@ export default function Rewards() {
 
             {!isLoading && sorted.length === 0 && (
               <tr>
-                <td colSpan={visibleColumns.length} className="px-4 py-10 text-center text-sm text-muted-foreground">
-                  No markets with reward programs found.
+                <td colSpan={visibleColumns.length} className="px-0 py-0">
+                  <EmptyState
+                    icon={<Gift className="w-5 h-5" />}
+                    title="No markets with rewards"
+                    description="Markets earning external rewards or points will appear here."
+                  />
                 </td>
               </tr>
             )}
