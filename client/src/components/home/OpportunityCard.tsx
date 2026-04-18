@@ -14,7 +14,7 @@ export interface OpportunityCardProps {
 export function OpportunityCard({ icon, title, variant, isLoading, children, cta }: OpportunityCardProps) {
   const pad = variant === "dense" ? "p-4" : "p-5";
   return (
-    <div className={`bg-card border border-card-border rounded-xl ${pad} flex flex-col min-h-0`}>
+    <div className={`bg-card border border-card-border rounded-xl ${pad} flex flex-col min-h-0 hover:-translate-y-0.5 transition-transform duration-150`}>
       <div className="flex items-center gap-2 mb-3">
         <span className="text-lg leading-none">{icon}</span>
         <h3 className="text-xs font-semibold tracking-wider uppercase text-muted-foreground">{title}</h3>

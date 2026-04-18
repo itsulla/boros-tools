@@ -17,7 +17,7 @@ export function QuickToolsStrip() {
       <div className="flex flex-wrap gap-2">
         {TOOLS.map(t => (
           <Link key={t.href} href={t.href}>
-            <span className="inline-flex items-center px-3 py-1.5 text-xs font-medium border border-card-border text-foreground rounded-lg hover:bg-white/[0.03] cursor-pointer transition-colors">
+            <span className="inline-flex items-center px-3 py-1.5 text-xs font-medium border border-card-border text-foreground rounded-lg hover:bg-white/[0.03] hover:-translate-y-0.5 cursor-pointer transition-all duration-150">
               {t.label}
             </span>
           </Link>

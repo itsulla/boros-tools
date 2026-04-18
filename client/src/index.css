@@ -280,10 +280,11 @@
     color: #090D18;
     font-weight: 600;
     border-radius: 0.5rem;
-    transition: opacity 0.2s ease;
+    transition: opacity 0.2s ease, filter 150ms ease;
   }
 
   .teal-cta:hover {
     opacity: 0.9;
+    filter: brightness(1.1);
   }
 }
