@@ -466,6 +466,72 @@ export function usePendleMarketDetail(chainId: number | null, address: string | 
   });
 }
 
+// Whale events
+export interface WhaleEvent {
+  id: number;
+  timestamp: string;
+  chainId: number;
+  marketAddress: string;
+  marketName: string;
+  asset: string;
+  eventType: string;
+  tvlBefore: number;
+  tvlAfter: number;
+  tvlChange: number;
+  tvlChangePercent: number;
+}
+export function useWhales(limit = 10) {
+  return useQuery<WhaleEvent[]>({
+    queryKey: ["whales", limit],
+    queryFn: () => safeFetch<WhaleEvent[] | null>(`/api/pendle/whales?limit=${limit}`, null).then(d => d ?? []),
+    staleTime: 60_000,
+    refetchInterval: 300_000,
+  });
+}
+
+// Market Movers
+export interface MarketMover {
+  chainId: number;
+  address: string;
+  name: string;
+  asset: string;
+  currentApy: number;
+  previousApy: number;
+  apyChangeBps: number;
+  totalTvl: number;
+  daysToMaturity: number;
+}
+export function useMarketMovers(lookbackDays = 7, limit = 10) {
+  return useQuery<MarketMover[]>({
+    queryKey: ["market-movers", lookbackDays, limit],
+    queryFn: () => safeFetch<MarketMover[] | null>(`/api/pendle/movers?lookbackDays=${lookbackDays}&limit=${limit}`, null).then(d => d ?? []),
+    staleTime: 300_000,
+  });
+}
+
+// sPENDLE stats (extract from SPendle.tsx)
+export interface SPendleStats {
+  pendlePrice: number | null;
+  mcap: number | null;
+  totalTvl: number | null;
+  stakingTvl: number | null;
+  stakingPctOfMcap: number | null;
+  annualFees: number | null;
+  annualRevenue: number | null;
+  holdersRevenue: number | null;
+  stakingApy: number | null;
+  dailyBuyback: number | null;
+  dailyPendleBought: number | null;
+  tvlToMcapRatio: number | null;
+}
+export function useSpendleStats() {
+  return useQuery<SPendleStats | null>({
+    queryKey: ["spendle-stats"],
+    queryFn: () => safeFetch<SPendleStats | null>("/api/pendle/spendle", null),
+    staleTime: 300_000,
+  });
+}
+
 // Format helpers
 export function formatPercent(value: number, decimals = 2): string {
   return `${value >= 0 ? "+" : ""}${value.toFixed(decimals)}%`;
