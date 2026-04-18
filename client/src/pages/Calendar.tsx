@@ -1,7 +1,10 @@
 import { useState, useMemo } from "react";
+import { Link } from "wouter";
 import { PageContainer, StickyCTA } from "@/components/Layout";
-import { usePendleMarketList, formatUSD } from "@/lib/api";
+import { usePendleMarketList, formatUSD, useSparklines, sparklineKey } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useMode } from "@/lib/mode-context";
+import { Sparkline } from "@/components/Sparkline";
 
 type SortKey = "expiry" | "apy" | "tvl";
 
@@ -66,6 +69,8 @@ function getBucket(daysToExpiry: number): BucketConfig {
 
 export default function Calendar() {
   const { data: markets, isLoading } = usePendleMarketList();
+  const { mode } = useMode();
+  const { data: sparklines } = useSparklines();
   const [sortBy, setSortBy] = useState<SortKey>("expiry");
 
   const grouped = useMemo(() => {
@@ -164,21 +169,32 @@ export default function Calendar() {
                     className="bg-card border border-card-border rounded-lg p-4"
                   >
                     {/* Name */}
-                    <p className="font-semibold text-sm leading-snug mb-2 truncate">
+                    <p className="font-semibold text-sm leading-snug mb-1 truncate">
                       {market.name}
                     </p>
 
-                    {/* Badges row */}
-                    <div className="flex items-center gap-1.5 flex-wrap mb-3">
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-muted/30 text-muted-foreground border border-border/30">
-                        Chain {market.chainId}
-                      </span>
-                      {market.asset && (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-muted/30 text-muted-foreground border border-border/30">
-                          {market.asset}
+                    {/* Sparkline (both modes) */}
+                    <div className="mb-2">
+                      <Link href="/history">
+                        <span className="cursor-pointer inline-block">
+                          <Sparkline data={sparklines?.[sparklineKey(market.chainId, market.address)] ?? []} />
                         </span>
-                      )}
+                      </Link>
                     </div>
+
+                    {/* Badges row — advanced only */}
+                    {mode === "advanced" && (
+                      <div className="flex items-center gap-1.5 flex-wrap mb-3">
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-muted/30 text-muted-foreground border border-border/30">
+                          Chain {market.chainId}
+                        </span>
+                        {market.asset && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-muted/30 text-muted-foreground border border-border/30">
+                            {market.asset}
+                          </span>
+                        )}
+                      </div>
+                    )}
 
                     {/* Stats */}
                     <div className="space-y-1">
@@ -188,12 +204,14 @@ export default function Calendar() {
                           {(market.impliedApy * 100).toFixed(2)}%
                         </span>
                       </div>
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="text-muted-foreground">TVL</span>
-                        <span className="font-medium text-foreground">
-                          {formatUSD(market.totalTvl)}
-                        </span>
-                      </div>
+                      {mode === "advanced" && (
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="text-muted-foreground">TVL</span>
+                          <span className="font-medium text-foreground">
+                            {formatUSD(market.totalTvl)}
+                          </span>
+                        </div>
+                      )}
                       <div className="flex justify-between items-center text-xs">
                         <span className="text-muted-foreground">Expires in</span>
                         <span className={`font-semibold ${bucket.badgeColor}`}>

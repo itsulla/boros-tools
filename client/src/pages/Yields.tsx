@@ -1,12 +1,15 @@
 import { useState, useMemo } from "react";
+import { Link } from "wouter";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from "recharts";
 import { ExternalLink, Shield, AlertTriangle, Flame } from "lucide-react";
 import { PageContainer, StickyCTA } from "@/components/Layout";
-import { useYieldPools, formatPercent, formatUSD, usePendleStatus } from "@/lib/api";
+import { useYieldPools, formatUSD, usePendleStatus, useSparklines, sparklineKey } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BOROS_REFERRAL_URL } from "@/lib/constants";
+import { useMode } from "@/lib/mode-context";
+import { Sparkline } from "@/components/Sparkline";
 
 const ASSET_FILTERS = ["All", "ETH", "BTC", "USDC", "USDT", "SOL"];
 
@@ -30,10 +33,27 @@ function RiskBadge({ level }: { level: string }) {
   );
 }
 
+const YIELD_COLUMNS = [
+  { id: "protocol", label: "Protocol", mode: "advanced" as const },
+  { id: "product", label: "Product", mode: "both" as const },
+  { id: "asset", label: "Asset", mode: "both" as const },
+  { id: "apy", label: "APY/APR", mode: "both" as const },
+  { id: "type", label: "Type", mode: "advanced" as const },
+  { id: "maturity", label: "Maturity", mode: "advanced" as const },
+  { id: "tvl", label: "TVL", mode: "both" as const },
+  { id: "risk", label: "Risk", mode: "advanced" as const },
+  { id: "trend", label: "Trend", mode: "both" as const },
+  { id: "source", label: "", mode: "both" as const },
+];
+
 export default function Yields() {
   const { data: pools, isLoading } = useYieldPools();
   const [assetFilter, setAssetFilter] = useState("All");
   const [sortBy, setSortBy] = useState<"apy" | "tvl">("apy");
+  const { mode } = useMode();
+  const { data: sparklines } = useSparklines();
+
+  const visibleColumns = YIELD_COLUMNS.filter(c => c.mode === "both" || c.mode === mode);
 
   const { data: pendleStatus } = usePendleStatus();
 
@@ -174,44 +194,79 @@ export default function Yields() {
             <table className="w-full text-sm" data-testid="yields-table">
               <thead>
                 <tr className="border-b border-border/30 text-muted-foreground">
-                  <th className="text-left py-3 px-4 text-xs font-medium">Protocol</th>
-                  <th className="text-left py-3 px-4 text-xs font-medium">Product</th>
-                  <th className="text-center py-3 px-4 text-xs font-medium">Asset</th>
-                  <th className="text-right py-3 px-4 text-xs font-medium">APY/APR</th>
-                  <th className="text-center py-3 px-4 text-xs font-medium">Type</th>
-                  <th className="text-center py-3 px-4 text-xs font-medium">Maturity</th>
-                  <th className="text-center py-3 px-4 text-xs font-medium">Risk</th>
-                  <th className="text-right py-3 px-4 text-xs font-medium">TVL</th>
-                  <th className="text-center py-3 px-4 text-xs font-medium"></th>
+                  {visibleColumns.map(c => (
+                    <th key={c.id} className={`py-3 px-4 text-xs font-medium ${
+                      c.id === "apy" || c.id === "tvl" ? "text-right" :
+                      c.id === "source" ? "text-center" :
+                      c.id === "product" || c.id === "protocol" ? "text-left" :
+                      "text-center"
+                    }`}>{c.label}</th>
+                  ))}
                 </tr>
               </thead>
               <tbody className="text-xs">
                 {filtered.map((pool, i) => (
-                  <tr key={i} className={`border-b border-border/10 hover:bg-white/[0.02] ${pool.protocol === "Boros" ? "bg-primary/[0.03]" : ""}`}>
-                    <td className="py-2.5 px-4 font-medium">
-                      {pool.protocol === "Boros" && <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary mr-1.5" />}
-                      {pool.protocol}
-                    </td>
-                    <td className="py-2.5 px-4 text-muted-foreground">{pool.product}</td>
-                    <td className="py-2.5 px-4 text-center font-mono tabular-nums">{pool.asset}</td>
-                    <td className={`py-2.5 px-4 text-right font-mono tabular-nums font-semibold ${pool.protocol === "Boros" ? "text-primary" : ""}`}>
-                      {pool.apy.toFixed(2)}%
-                    </td>
-                    <td className="py-2.5 px-4 text-center">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${pool.type === "Fixed" ? "bg-primary/10 text-primary" : "bg-secondary/10 text-secondary"}`}>
-                        {pool.type}
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-4 text-center text-muted-foreground">{pool.maturity ?? "—"}</td>
-                    <td className="py-2.5 px-4 text-center">
-                      <RiskBadge level={pool.riskLevel} />
-                    </td>
-                    <td className="py-2.5 px-4 text-right font-mono tabular-nums text-muted-foreground">{formatUSD(pool.tvl)}</td>
-                    <td className="py-2.5 px-4 text-center">
-                      <a href={pool.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground">
-                        <ExternalLink className="w-3.5 h-3.5" />
-                      </a>
-                    </td>
+                  <tr key={i} className={`border-b border-border/10 hover:bg-white/[0.04] transition-colors duration-150 ${pool.protocol === "Boros" ? "bg-primary/[0.03]" : ""}`}>
+                    {visibleColumns.map(c => {
+                      switch (c.id) {
+                        case "protocol":
+                          return (
+                            <td key={c.id} className="py-2.5 px-4 font-medium">
+                              {pool.protocol === "Boros" && <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary mr-1.5" />}
+                              {pool.protocol}
+                            </td>
+                          );
+                        case "product":
+                          return <td key={c.id} className="py-2.5 px-4 text-muted-foreground">{pool.product}</td>;
+                        case "asset":
+                          return <td key={c.id} className="py-2.5 px-4 text-center font-mono tabular-nums">{pool.asset}</td>;
+                        case "apy":
+                          return (
+                            <td key={c.id} className={`py-2.5 px-4 text-right font-mono tabular-nums font-semibold ${pool.protocol === "Boros" ? "text-primary" : ""}`}>
+                              {pool.apy.toFixed(2)}%
+                            </td>
+                          );
+                        case "type":
+                          return (
+                            <td key={c.id} className="py-2.5 px-4 text-center">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${pool.type === "Fixed" ? "bg-primary/10 text-primary" : "bg-secondary/10 text-secondary"}`}>
+                                {pool.type}
+                              </span>
+                            </td>
+                          );
+                        case "maturity":
+                          return <td key={c.id} className="py-2.5 px-4 text-center text-muted-foreground">{pool.maturity ?? "—"}</td>;
+                        case "tvl":
+                          return <td key={c.id} className="py-2.5 px-4 text-right font-mono tabular-nums text-muted-foreground">{formatUSD(pool.tvl)}</td>;
+                        case "risk":
+                          return <td key={c.id} className="py-2.5 px-4 text-center"><RiskBadge level={pool.riskLevel} /></td>;
+                        case "trend": {
+                          const anyPool = pool as any;
+                          if (!anyPool.chainId || !anyPool.address) {
+                            return <td key={c.id} className="py-2.5 px-4 text-center text-muted-foreground">—</td>;
+                          }
+                          const key = sparklineKey(anyPool.chainId, anyPool.address);
+                          const points = sparklines?.[key];
+                          return (
+                            <td key={c.id} className="py-2.5 px-4 text-center">
+                              <Link href="/history">
+                                <span className="cursor-pointer inline-block"><Sparkline data={points ?? []} /></span>
+                              </Link>
+                            </td>
+                          );
+                        }
+                        case "source":
+                          return (
+                            <td key={c.id} className="py-2.5 px-4 text-center">
+                              <a href={pool.sourceUrl} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground">
+                                <ExternalLink className="w-3.5 h-3.5" />
+                              </a>
+                            </td>
+                          );
+                        default:
+                          return null;
+                      }
+                    })}
                   </tr>
                 ))}
               </tbody>

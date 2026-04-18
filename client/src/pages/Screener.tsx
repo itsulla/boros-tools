@@ -1,8 +1,11 @@
 import { useState, useMemo } from "react";
+import { Link } from "wouter";
 import { ArrowUpDown, Search } from "lucide-react";
 import { PageContainer, StickyCTA } from "@/components/Layout";
-import { usePendleMarketList, formatUSD, type PendleMarketRaw } from "@/lib/api";
+import { usePendleMarketList, formatUSD, type PendleMarketRaw, useSparklines, sparklineKey } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useMode } from "@/lib/mode-context";
+import { Sparkline } from "@/components/Sparkline";
 
 const CHAIN_NAMES: Record<number, string> = {
   1: "Ethereum",
@@ -51,8 +54,25 @@ function pct(val: number): string {
   return `${(val * 100).toFixed(2)}%`;
 }
 
+const SCREENER_COLUMNS = [
+  { id: "name", label: "Market", mode: "both" as const, sortable: true, field: "name" as SortField },
+  { id: "chain", label: "Chain", mode: "both" as const, sortable: true, field: "chain" as SortField },
+  { id: "asset", label: "Asset", mode: "both" as const, sortable: true, field: "asset" as SortField },
+  { id: "impliedApy", label: "Impl APY", mode: "both" as const, sortable: true, field: "impliedApy" as SortField },
+  { id: "underlyingApy", label: "Under APY", mode: "advanced" as const, sortable: true, field: "underlyingApy" as SortField },
+  { id: "spread", label: "Spread", mode: "advanced" as const, sortable: true, field: "spread" as SortField },
+  { id: "tvl", label: "TVL", mode: "both" as const, sortable: true, field: "tvl" as SortField },
+  { id: "liquidity", label: "Liquidity", mode: "advanced" as const, sortable: true, field: "liquidity" as SortField },
+  { id: "daysToMaturity", label: "Days", mode: "advanced" as const, sortable: true, field: "daysToMaturity" as SortField },
+  { id: "trend", label: "Trend", mode: "both" as const, sortable: false, field: null },
+];
+
 export default function Screener() {
   const { data: markets, isLoading } = usePendleMarketList();
+  const { mode } = useMode();
+  const { data: sparklines } = useSparklines();
+
+  const visibleColumns = SCREENER_COLUMNS.filter(c => c.mode === "both" || c.mode === mode);
 
   const [search, setSearch] = useState("");
   const [chainFilter, setChainFilter] = useState("All");
@@ -258,37 +278,31 @@ export default function Screener() {
 
       {/* Table */}
       <div className="bg-card border border-card-border rounded-xl overflow-hidden overflow-x-auto mb-8">
-        <table className="w-full min-w-[900px] text-sm">
+        <table className="w-full min-w-[700px] text-sm">
           <thead className="border-b border-border/20 bg-white/[0.02]">
             <tr>
-              <SortHeader field="name">Market</SortHeader>
-              <SortHeader field="chain">Chain</SortHeader>
-              <SortHeader field="asset">Asset</SortHeader>
-              <SortHeader field="impliedApy" className="text-right">
-                Implied APY
-              </SortHeader>
-              <SortHeader field="underlyingApy" className="text-right">
-                Underlying APY
-              </SortHeader>
-              <SortHeader field="spread" className="text-right">
-                Spread
-              </SortHeader>
-              <SortHeader field="tvl" className="text-right">
-                TVL
-              </SortHeader>
-              <SortHeader field="liquidity" className="text-right">
-                Liquidity
-              </SortHeader>
-              <SortHeader field="daysToMaturity" className="text-right">
-                Days Left
-              </SortHeader>
+              {visibleColumns.map(c => {
+                if (!c.sortable || c.field === null) {
+                  return (
+                    <th key={c.id} className="px-4 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider whitespace-nowrap">
+                      {c.label}
+                    </th>
+                  );
+                }
+                const rightAlign = ["impliedApy", "underlyingApy", "spread", "tvl", "liquidity", "daysToMaturity"].includes(c.id);
+                return (
+                  <SortHeader key={c.id} field={c.field} className={rightAlign ? "text-right" : ""}>
+                    {c.label}
+                  </SortHeader>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
             {isLoading
               ? Array.from({ length: 10 }).map((_, i) => (
                   <tr key={i} className="border-b border-border/10">
-                    {Array.from({ length: 9 }).map((_, j) => (
+                    {Array.from({ length: visibleColumns.length }).map((_, j) => (
                       <td key={j} className="px-4 py-3">
                         <Skeleton className="h-4 w-full" />
                       </td>
@@ -303,86 +317,70 @@ export default function Screener() {
                   return (
                     <tr
                       key={`${market.chainId}-${market.address}`}
-                      className="border-b border-border/10 hover:bg-white/[0.02] transition-colors"
+                      className="border-b border-border/10 hover:bg-white/[0.04] transition-colors duration-150"
                     >
-                      {/* Market name + badges */}
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-foreground font-medium text-xs leading-snug">
-                            {market.name}
-                          </span>
-                          {hasPoints && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded border text-[10px] font-medium bg-primary/10 text-primary border-primary/30">
-                              Points
-                            </span>
-                          )}
-                          {market.isNew && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded border text-[10px] font-medium bg-blue-500/10 text-blue-400 border-blue-500/30">
-                              New
-                            </span>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* Chain */}
-                      <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
-                        {chainName(market.chainId)}
-                      </td>
-
-                      {/* Asset */}
-                      <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
-                        {market.asset}
-                      </td>
-
-                      {/* Implied APY */}
-                      <td className="px-4 py-3 text-right font-mono tabular-nums text-xs text-secondary whitespace-nowrap">
-                        {pct(market.impliedApy)}
-                      </td>
-
-                      {/* Underlying APY */}
-                      <td className="px-4 py-3 text-right font-mono tabular-nums text-xs text-muted-foreground whitespace-nowrap">
-                        {pct(market.underlyingApy)}
-                      </td>
-
-                      {/* Spread */}
-                      <td
-                        className={`px-4 py-3 text-right font-mono tabular-nums text-xs whitespace-nowrap ${
-                          spread >= 0 ? "text-secondary" : "text-destructive"
-                        }`}
-                      >
-                        {spread >= 0 ? "+" : ""}
-                        {pct(spread)}
-                      </td>
-
-                      {/* TVL */}
-                      <td className="px-4 py-3 text-right font-mono tabular-nums text-xs text-muted-foreground whitespace-nowrap">
-                        {formatUSD(market.totalTvl)}
-                      </td>
-
-                      {/* Liquidity */}
-                      <td className="px-4 py-3 text-right font-mono tabular-nums text-xs text-muted-foreground whitespace-nowrap">
-                        {formatUSD(market.liquidity)}
-                      </td>
-
-                      {/* Days to maturity */}
-                      <td
-                        className={`px-4 py-3 text-right font-mono tabular-nums text-xs whitespace-nowrap ${
-                          days <= 7
-                            ? "text-destructive"
-                            : days <= 30
-                              ? "text-yellow-400"
-                              : "text-muted-foreground"
-                        }`}
-                      >
-                        {days}d
-                      </td>
+                      {visibleColumns.map(c => {
+                        switch (c.id) {
+                          case "name":
+                            return (
+                              <td key={c.id} className="px-4 py-3">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="text-foreground font-medium text-xs leading-snug">{market.name}</span>
+                                  {hasPoints && (
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded border text-[10px] font-medium bg-primary/10 text-primary border-primary/30">Points</span>
+                                  )}
+                                  {market.isNew && (
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded border text-[10px] font-medium bg-blue-500/10 text-blue-400 border-blue-500/30">New</span>
+                                  )}
+                                </div>
+                              </td>
+                            );
+                          case "chain":
+                            return <td key={c.id} className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{chainName(market.chainId)}</td>;
+                          case "asset":
+                            return <td key={c.id} className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{market.asset}</td>;
+                          case "impliedApy":
+                            return <td key={c.id} className="px-4 py-3 text-right font-mono tabular-nums text-xs text-secondary whitespace-nowrap">{pct(market.impliedApy)}</td>;
+                          case "underlyingApy":
+                            return <td key={c.id} className="px-4 py-3 text-right font-mono tabular-nums text-xs text-muted-foreground whitespace-nowrap">{pct(market.underlyingApy)}</td>;
+                          case "spread":
+                            return (
+                              <td key={c.id} className={`px-4 py-3 text-right font-mono tabular-nums text-xs whitespace-nowrap ${spread >= 0 ? "text-secondary" : "text-destructive"}`}>
+                                {spread >= 0 ? "+" : ""}{pct(spread)}
+                              </td>
+                            );
+                          case "tvl":
+                            return <td key={c.id} className="px-4 py-3 text-right font-mono tabular-nums text-xs text-muted-foreground whitespace-nowrap">{formatUSD(market.totalTvl)}</td>;
+                          case "liquidity":
+                            return <td key={c.id} className="px-4 py-3 text-right font-mono tabular-nums text-xs text-muted-foreground whitespace-nowrap">{formatUSD(market.liquidity)}</td>;
+                          case "daysToMaturity":
+                            return (
+                              <td key={c.id} className={`px-4 py-3 text-right font-mono tabular-nums text-xs whitespace-nowrap ${days <= 7 ? "text-destructive" : days <= 30 ? "text-yellow-400" : "text-muted-foreground"}`}>
+                                {days}d
+                              </td>
+                            );
+                          case "trend": {
+                            const key = sparklineKey(market.chainId, market.address);
+                            const points = sparklines?.[key];
+                            return (
+                              <td key={c.id} className="px-4 py-3">
+                                <Link href="/history">
+                                  <span className="cursor-pointer inline-block"><Sparkline data={points ?? []} /></span>
+                                </Link>
+                              </td>
+                            );
+                          }
+                          default:
+                            return null;
+                        }
+                      })}
                     </tr>
                   );
                 })}
 
             {!isLoading && filtered.length === 0 && (
               <tr>
-                <td colSpan={9} className="px-4 py-12 text-center text-muted-foreground text-sm">
+                <td colSpan={visibleColumns.length} className="px-4 py-12 text-center text-muted-foreground text-sm">
                   No markets match your filters.
                 </td>
               </tr>

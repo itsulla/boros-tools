@@ -3,6 +3,7 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import { PageContainer, StickyCTA } from "@/components/Layout";
 import { usePendleMarketList, usePendleMarketDetail, formatUSD } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useMode } from "@/lib/mode-context";
 
 function RewardDetail({ chainId, address }: { chainId: number; address: string }) {
   const { data: detail, isLoading, isError, refetch } = usePendleMarketDetail(chainId, address);
@@ -75,10 +76,21 @@ function RewardDetail({ chainId, address }: { chainId: number; address: string }
   );
 }
 
+const REWARDS_COLUMNS = [
+  { id: "name", label: "Market Name", mode: "both" as const },
+  { id: "chain", label: "Chain", mode: "advanced" as const },
+  { id: "asset", label: "Asset", mode: "both" as const },
+  { id: "impliedApy", label: "Implied APY", mode: "both" as const },
+  { id: "tvl", label: "TVL", mode: "both" as const },
+];
+
 export default function Rewards() {
   const { data: markets, isLoading } = usePendleMarketList({ hasPoints: true });
+  const { mode } = useMode();
   const [sortBy, setSortBy] = useState<"apy" | "tvl">("apy");
   const [expandedMarket, setExpandedMarket] = useState<string | null>(null);
+
+  const visibleColumns = REWARDS_COLUMNS.filter(c => c.mode === "both" || c.mode === mode);
 
   const sorted = useMemo(() => {
     if (!markets) return [];
@@ -132,28 +144,28 @@ export default function Rewards() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border/30 text-muted-foreground">
-              <th className="text-left text-xs font-medium px-4 py-3">Market Name</th>
-              <th className="text-left text-xs font-medium px-4 py-3">Chain</th>
-              <th className="text-left text-xs font-medium px-4 py-3">Asset</th>
-              <th className="text-right text-xs font-medium px-4 py-3">Implied APY</th>
-              <th className="text-right text-xs font-medium px-4 py-3">TVL</th>
+              {visibleColumns.map(c => (
+                <th key={c.id} className={`text-xs font-medium px-4 py-3 ${c.id === "impliedApy" || c.id === "tvl" ? "text-right" : "text-left"}`}>
+                  {c.label}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
             {isLoading &&
               Array.from({ length: 5 }).map((_, i) => (
                 <tr key={i} className="border-b border-border/10 last:border-0">
-                  <td className="px-4 py-3"><Skeleton className="h-4 w-48" /></td>
-                  <td className="px-4 py-3"><Skeleton className="h-4 w-12" /></td>
-                  <td className="px-4 py-3"><Skeleton className="h-4 w-16" /></td>
-                  <td className="px-4 py-3"><Skeleton className="h-4 w-16 ml-auto" /></td>
-                  <td className="px-4 py-3"><Skeleton className="h-4 w-16 ml-auto" /></td>
+                  {visibleColumns.map(c => (
+                    <td key={c.id} className="px-4 py-3">
+                      <Skeleton className={`h-4 ${c.id === "name" ? "w-48" : c.id === "impliedApy" || c.id === "tvl" ? "w-16 ml-auto" : "w-12"}`} />
+                    </td>
+                  ))}
                 </tr>
               ))}
 
             {!isLoading && sorted.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                <td colSpan={visibleColumns.length} className="px-4 py-10 text-center text-sm text-muted-foreground">
                   No markets with reward programs found.
                 </td>
               </tr>
@@ -166,40 +178,49 @@ export default function Rewards() {
                   <Fragment key={m.address}>
                     <tr
                       onClick={() => toggleRow(m.address)}
-                      className="border-b border-border/10 last:border-0 hover:bg-white/[0.02] cursor-pointer transition-colors"
+                      className="border-b border-border/10 last:border-0 hover:bg-white/[0.04] cursor-pointer transition-colors duration-150"
                     >
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-foreground">{m.name}</span>
-                          <span className="bg-secondary/10 text-secondary border border-secondary/30 px-2 py-0.5 rounded-full text-[10px] font-semibold">
-                            Points
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground font-mono tabular-nums">
-                        {m.chainId}
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">
-                        {m.asset}
-                      </td>
-                      <td className="px-4 py-3 text-right font-mono tabular-nums text-primary">
-                        {(m.impliedApy * 100).toFixed(2)}%
-                      </td>
-                      <td className="px-4 py-3 text-right font-mono tabular-nums text-muted-foreground">
-                        <div className="flex items-center justify-end gap-2">
-                          {formatUSD(m.totalTvl)}
-                          {isExpanded ? (
-                            <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" />
-                          ) : (
-                            <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
-                          )}
-                        </div>
-                      </td>
+                      {visibleColumns.map(c => {
+                        switch (c.id) {
+                          case "name":
+                            return (
+                              <td key={c.id} className="px-4 py-3">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-semibold text-foreground">{m.name}</span>
+                                  <span className="bg-secondary/10 text-secondary border border-secondary/30 px-2 py-0.5 rounded-full text-[10px] font-semibold">
+                                    Points
+                                  </span>
+                                </div>
+                              </td>
+                            );
+                          case "chain":
+                            return <td key={c.id} className="px-4 py-3 text-muted-foreground font-mono tabular-nums">{m.chainId}</td>;
+                          case "asset":
+                            return <td key={c.id} className="px-4 py-3 text-muted-foreground">{m.asset}</td>;
+                          case "impliedApy":
+                            return <td key={c.id} className="px-4 py-3 text-right font-mono tabular-nums text-primary">{(m.impliedApy * 100).toFixed(2)}%</td>;
+                          case "tvl":
+                            return (
+                              <td key={c.id} className="px-4 py-3 text-right font-mono tabular-nums text-muted-foreground">
+                                <div className="flex items-center justify-end gap-2">
+                                  {formatUSD(m.totalTvl)}
+                                  {isExpanded ? (
+                                    <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" />
+                                  ) : (
+                                    <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+                                  )}
+                                </div>
+                              </td>
+                            );
+                          default:
+                            return null;
+                        }
+                      })}
                     </tr>
 
                     {isExpanded && (
                       <tr key={`${m.address}-detail`} className="border-b border-border/10 last:border-0">
-                        <td colSpan={5} className="p-0">
+                        <td colSpan={visibleColumns.length} className="p-0">
                           <RewardDetail chainId={m.chainId} address={m.address} />
                         </td>
                       </tr>

@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import { Link } from "wouter";
-import { usePendleMarketList, formatUSD } from "@/lib/api";
+import { usePendleMarketList, formatUSD, useSparklines, sparklineKey } from "@/lib/api";
+import { Sparkline } from "@/components/Sparkline";
 
 const CHAINS: Record<number, string> = { 1: "ETH", 42161: "ARB", 56: "BSC", 8453: "BASE" };
 type Filter = "all" | "stables" | "eth" | "btc";
@@ -15,6 +16,7 @@ function classify(asset: string): "stables" | "eth" | "btc" | "other" {
 
 export function TopMarketsTable() {
   const { data: markets, isLoading } = usePendleMarketList();
+  const { data: sparklines } = useSparklines();
   const [filter, setFilter] = useState<Filter>("all");
 
   const rows = useMemo(() => {
@@ -55,13 +57,14 @@ export function TopMarketsTable() {
               <th className="text-right px-4 py-2 text-[11px] font-medium">Impl APY</th>
               <th className="text-right px-4 py-2 text-[11px] font-medium">Under APY</th>
               <th className="text-right px-4 py-2 text-[11px] font-medium">Days</th>
+              <th className="text-left px-4 py-2 text-[11px] font-medium">Trend</th>
             </tr>
           </thead>
           <tbody className="font-mono text-xs">
             {isLoading ? (
-              <tr><td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">Loading…</td></tr>
+              <tr><td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">Loading…</td></tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">No markets match</td></tr>
+              <tr><td colSpan={7} className="px-4 py-6 text-center text-muted-foreground">No markets match</td></tr>
             ) : (
               rows.map(({ m, days }) => (
                 <tr key={`${m.chainId}:${m.address}`} className="border-b border-border/10 hover:bg-white/[0.02]">
@@ -71,6 +74,11 @@ export function TopMarketsTable() {
                   <td className="px-4 py-2 text-right tabular-nums text-secondary">{(m.impliedApy * 100).toFixed(2)}%</td>
                   <td className="px-4 py-2 text-right tabular-nums text-muted-foreground">{(m.underlyingApy * 100).toFixed(2)}%</td>
                   <td className="px-4 py-2 text-right tabular-nums text-muted-foreground">{days}d</td>
+                  <td className="px-4 py-2">
+                    <Link href="/history">
+                      <span className="cursor-pointer inline-block"><Sparkline data={sparklines?.[sparklineKey(m.chainId, m.address)] ?? []} /></span>
+                    </Link>
+                  </td>
                 </tr>
               ))
             )}
