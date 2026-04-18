@@ -283,6 +283,30 @@ export async function registerRoutes(
     }
   });
 
+  // GET /api/pendle/sparklines — bulk APY history for all markets (last N days)
+  app.get("/api/pendle/sparklines", (req, res) => {
+    try {
+      const lookbackDays = Math.min(parseInt(String(req.query.lookbackDays ?? "30"), 10), 30);
+      const rows = db.prepare(`
+        SELECT chainId, address, snapshotDate, impliedApy
+        FROM market_snapshots
+        WHERE snapshotDate >= date('now', ?)
+        ORDER BY chainId, address, snapshotDate
+      `).all(`-${lookbackDays} days`) as { chainId: number; address: string; snapshotDate: string; impliedApy: number | null }[];
+
+      const map: Record<string, { date: string; apy: number }[]> = {};
+      for (const r of rows) {
+        const key = `${r.chainId}:${r.address}`;
+        if (!map[key]) map[key] = [];
+        map[key].push({ date: r.snapshotDate, apy: r.impliedApy ?? 0 });
+      }
+      res.json(map);
+    } catch (err) {
+      console.error("[pendle-routes] /api/pendle/sparklines error:", err);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
   // GET /api/pendle/spendle — sPENDLE staking dashboard data
   app.get("/api/pendle/spendle", async (req, res) => {
     try {

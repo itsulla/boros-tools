@@ -532,6 +532,23 @@ export function useSpendleStats() {
   });
 }
 
+// Sparklines — bulk APY history for all markets
+export interface SparklinePoint { date: string; apy: number; }
+export type SparklineMap = Record<string, SparklinePoint[]>;
+
+export function useSparklines() {
+  return useQuery<SparklineMap>({
+    queryKey: ["sparklines"],
+    queryFn: () => safeFetch<SparklineMap | null>("/api/pendle/sparklines", null).then((d) => d ?? {}),
+    staleTime: 300_000,
+    refetchInterval: 600_000,
+  });
+}
+
+export function sparklineKey(chainId: number, address: string): string {
+  return `${chainId}:${address}`;
+}
+
 // Format helpers
 export function formatPercent(value: number, decimals = 2): string {
   return `${value >= 0 ? "+" : ""}${value.toFixed(decimals)}%`;
